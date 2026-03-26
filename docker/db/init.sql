@@ -125,7 +125,7 @@ create table transaction_logs(
 	id              serial4         not null    primary key,
 	date            timestamp       not null    default now(),
 	amount          numeric(10,2)   not null,
-	fk_user_id      int4            not null    references users(id)	on delete cascade,
+	fk_user_id      int4            null    references users(id)	on delete set null,
 	fk_card_id      int4            not null    references cards(id)	on delete cascade,
 	fk_stand_id     int4            not null    references stands(id)	on delete cascade
 );

@@ -13,7 +13,7 @@ object TransactionLogsTable : IntIdTable("transaction_logs") {
     val amount = decimal("amount", 10, 2)
 
     // User involved in the transaction.
-    val userId = reference("fk_user_id", UsersTable.id)
+    val userId = reference("fk_user_id", UsersTable.id).nullable()
 
     // Card used in the transaction.
     val cardId = reference("fk_card_id", CardsTable.id)
