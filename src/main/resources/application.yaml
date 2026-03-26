@@ -1,0 +1,18 @@
+ktor:
+  application:
+    modules:
+      - fr.plaglefleau.ApplicationKt.module
+  deployment:
+    port: 8080
+
+database:
+  host: ${DB_HOST:localhost}
+  port: ${DB_PORT:5432}
+  name: ${DB_NAME:cashless}
+  user: ${DB_USER:cashless_user}
+  password: ${DB_PASSWORD:cashless_password}
+jwt:
+  secret: ${JWT_SECRET:cashless_secret}
+  expiration: ${JWT_EXPIRATION:3600}
+  refreshSecret: ${JWT_REFRESH_SECRET:cashless_refresh_secret}
+  refreshExpiration: ${JWT_REFRESH_EXPIRATION:86400}

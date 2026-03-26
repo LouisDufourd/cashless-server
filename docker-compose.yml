@@ -1,0 +1,44 @@
+services:
+  db:
+    image: postgres:16
+    container_name: cashless-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: cashless
+      POSTGRES_USER: cashless_user
+      POSTGRES_PASSWORD: cashless_password
+    ports:
+      - "9876:5432"
+    volumes:
+      - cashless_db_data:/var/lib/postgresql/data
+      - ./docker/db:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cashless_user -d cashless"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  app:
+    build:
+      context: .
+    container_name: cashless-app
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: cashless
+      DB_USER: cashless_user
+      DB_PASSWORD: cashless_password
+      JWT_SECRET: some_secret
+      JWT_EXPIRATION: 1200
+      JWT_REFRESH_SECRET: some_refresh_secret
+      JWT_REFRESH_EXPIRATION: 86400
+    ports:
+      - "8080:8080"
+      - "5005:5005"
+
+volumes:
+  cashless_db_data:
