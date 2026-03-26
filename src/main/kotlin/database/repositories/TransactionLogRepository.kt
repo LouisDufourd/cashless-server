@@ -8,9 +8,9 @@ import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.selectAll
 
 class TransactionLogRepository {
-    fun getCardTransactionLog(cardId: Int, page: Int = 1) : List<TransactionLogEntity> = dbQuery {
-        val pageSize = 10
+    /*fun getCardTransactionLog(cardId: Int, page: Int = 1) : List<TransactionLogEntity> = dbQuery {
+        //val pageSize = 10
 
         //TODO : Select transaction log for a card with pagination
-    }
+    }*/
 }
