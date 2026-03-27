@@ -91,7 +91,7 @@ create table volunteers(
 	username        varchar(45)     not null    unique,
 	password        varchar(255)    not null,
 	fk_role_id      int4            not null    references roles(id),
-	fk_civility_id  int4            not null    references civilities(id) 	on delete cascade	unique,
+	fk_civility_id  int4            not null    references civilities(id) 	on delete cascade,
 	fk_stand_id     int4            null        references stands(id) 		on delete set null
 );
 
