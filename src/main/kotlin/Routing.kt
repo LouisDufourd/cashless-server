@@ -3,6 +3,7 @@ package fr.plaglefleau
 import fr.plaglefleau.database.repositories.TokenSessionRepository
 import fr.plaglefleau.database.repositories.TransactionLogRepository
 import fr.plaglefleau.database.repositories.VolunteerRepository
+import fr.plaglefleau.database.response.ErrorMessage
 import fr.plaglefleau.receive.ReceiveVolunteerLogin
 import io.ktor.http.*
 import io.ktor.server.application.*
@@ -47,7 +48,10 @@ fun Application.configureRouting() {
                 if (principal == null) {
                     call.respond(
                         status = HttpStatusCode.Unauthorized,
-                        message = "error" to " No credentials provided"
+                        message = ErrorMessage(
+                            message = "No credentials provided",
+                            code = 401
+                        )
                     )
                     return@get
                 }
@@ -81,7 +85,10 @@ fun Application.configureRouting() {
                         if (id == null) {
                             call.respond(
                                 status = HttpStatusCode.Unauthorized,
-                                message = mapOf("error" to "Invalid credentials")
+                                message = ErrorMessage(
+                                    message = "Invalid credentials",
+                                    401
+                                )
                             )
                             return@post
                         }
@@ -133,7 +140,10 @@ fun Application.configureRouting() {
                             if (principal == null) {
                                 call.respond(
                                     status = HttpStatusCode.Unauthorized,
-                                    message = mapOf("error" to "No credentials provided")
+                                    message = ErrorMessage(
+                                        message = "No credentials provided",
+                                        code = 401
+                                    )
                                 )
                                 return@post
                             }
