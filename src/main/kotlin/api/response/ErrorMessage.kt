@@ -1,4 +1,4 @@
-package fr.plaglefleau.database.response
+package fr.plaglefleau.api.response
 
 data class ErrorMessage(
     val message: String,

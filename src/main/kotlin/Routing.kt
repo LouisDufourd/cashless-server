@@ -3,8 +3,8 @@ package fr.plaglefleau
 import fr.plaglefleau.database.repositories.TokenSessionRepository
 import fr.plaglefleau.database.repositories.TransactionLogRepository
 import fr.plaglefleau.database.repositories.VolunteerRepository
-import fr.plaglefleau.database.response.ErrorMessage
-import fr.plaglefleau.receive.ReceiveVolunteerLogin
+import fr.plaglefleau.api.response.ErrorMessage
+import fr.plaglefleau.api.receive.ReceiveVolunteerLogin
 import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.auth.*

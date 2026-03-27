@@ -1,4 +1,4 @@
-package fr.plaglefleau.receive
+package fr.plaglefleau.api.receive
 
 data class ReceiveVolunteerLogin(
     val username: String,
