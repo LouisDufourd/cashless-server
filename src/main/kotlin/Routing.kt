@@ -48,10 +48,7 @@ fun Application.configureRouting() {
                 if (principal == null) {
                     call.respond(
                         status = HttpStatusCode.Unauthorized,
-                        message = ErrorMessage(
-                            message = "No credentials provided",
-                            code = 401
-                        )
+                        message = "error" to " No credentials provided"
                     )
                     return@get
                 }
@@ -87,7 +84,7 @@ fun Application.configureRouting() {
                                 status = HttpStatusCode.Unauthorized,
                                 message = ErrorMessage(
                                     message = "Invalid credentials",
-                                    401
+                                    code = 401
                                 )
                             )
                             return@post
@@ -140,10 +137,7 @@ fun Application.configureRouting() {
                             if (principal == null) {
                                 call.respond(
                                     status = HttpStatusCode.Unauthorized,
-                                    message = ErrorMessage(
-                                        message = "No credentials provided",
-                                        code = 401
-                                    )
+                                    message = mapOf("error" to "No credentials provided")
                                 )
                                 return@post
                             }
