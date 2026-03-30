@@ -6,6 +6,7 @@ import fr.plaglefleau.database.repositories.VolunteerRepository
 import fr.plaglefleau.api.response.ErrorMessage
 import fr.plaglefleau.api.receive.ReceiveVolunteerLogin
 import fr.plaglefleau.database.dto.TransactionLogDTO
+import fr.plaglefleau.database.repositories.CardRepository
 import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.auth.*
@@ -33,6 +34,7 @@ fun Application.configureRouting() {
     val tokenSessionRepository = TokenSessionRepository()
     val volunteerRepository = VolunteerRepository()
     val transactionLogRepository = TransactionLogRepository()
+    val cardRepository = CardRepository()
 
     routing {
         // Simple public endpoint used to verify the application is running.
@@ -217,6 +219,22 @@ fun Application.configureRouting() {
 
                             get("/balance") {
                                 // Return the current balance for this card.
+                                val codeNFC = call.parameters["identifier"]!!
+
+                                val id = codeNFC.toIntOrNull()
+
+                                val balance = if(id != null) {
+                                    cardRepository.getBalance(id)
+                                } else {
+                                    cardRepository.getBalance(codeNFC)
+                                }
+
+                                call.respond(
+                                    status = HttpStatusCode.OK,
+                                    message = mapOf(
+                                        "balance" to "$balance€"
+                                    )
+                                )
                             }
 
                             put("/connect") {
