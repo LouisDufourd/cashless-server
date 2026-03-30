@@ -5,6 +5,7 @@ import fr.plaglefleau.database.repositories.TransactionLogRepository
 import fr.plaglefleau.database.repositories.VolunteerRepository
 import fr.plaglefleau.api.response.ErrorMessage
 import fr.plaglefleau.api.receive.ReceiveVolunteerLogin
+import fr.plaglefleau.database.dto.TransactionLogDTO
 import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.auth.*
@@ -187,9 +188,31 @@ fun Application.configureRouting() {
                     route("/cards") {
 
                         // Card routes by numeric ID.
-                        route("/{id}") {
-                            get("/history/{page}") {
+                        route("/{identifier}") {
+                            get("/history") {
                                 // Fetch card history by internal database ID.
+                                val page = call.parameters["page"]?.toIntOrNull()
+                                val size = call.parameters["size"]?.toIntOrNull()
+                                val codeNFC = call.parameters["identifier"]!!
+
+                                val id = codeNFC.toIntOrNull()
+
+                                val transactionLog = if(id != null) {
+                                    transactionLogRepository.getCardTransactionLog(cardId = id, page, pageSize = size)
+                                } else {
+                                    transactionLogRepository.getCardTransactionLog(codeNFC, page, pageSize = size)
+                                }
+
+                                call.respond(
+                                    HttpStatusCode.OK,
+                                    mapOf(
+                                        "transactions" to transactionLog,
+                                        "pagination" to mapOf(
+                                            "page" to (page ?: 1),
+                                            "size" to (size ?: 10)
+                                        )
+                                    )
+                                )
                             }
 
                             get("/balance") {
@@ -210,33 +233,6 @@ fun Application.configureRouting() {
 
                             delete {
                                 // Delete or deactivate the card.
-                            }
-                        }
-
-                        // Card routes by NFC code.
-                        route("/{codeNFC}") {
-                            get("/history") {
-                                // Fetch card history by NFC code.
-                            }
-
-                            get("/balance") {
-                                // Return balance by NFC code.
-                            }
-
-                            put("/connect") {
-                                // Connect NFC card to a user.
-                            }
-
-                            put("/debit") {
-                                // Debit using NFC identifier.
-                            }
-
-                            put("/credit") {
-                                // Credit using NFC identifier.
-                            }
-
-                            delete {
-                                // Remove or deactivate the card by NFC.
                             }
                         }
 

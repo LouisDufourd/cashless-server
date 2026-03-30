@@ -4,9 +4,8 @@ import kotlin.time.Instant
 
 data class TransactionLogDTO(
     val id: Int,
-    val date: Instant,
+    val date: Long,
     val amount: Double,
-    val userDTO: UserDTO?,
-    val cardDTO: CardDTO,
-    val standDTO: StandDTO
+    val cardNFC: String,
+    val standName: String
 )
