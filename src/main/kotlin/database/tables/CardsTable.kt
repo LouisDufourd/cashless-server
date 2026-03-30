@@ -17,5 +17,5 @@ object CardsTable : IntIdTable("cards") {
 
     // Foreign key to the owning user.
     // This column stores the user's ID and enforces referential integrity.
-    val userId = reference("fk_user_id", UsersTable.id)
+    val userId = reference("fk_user_id", UsersTable.id).nullable()
 }

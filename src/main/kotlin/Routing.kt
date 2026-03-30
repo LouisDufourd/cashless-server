@@ -1,10 +1,12 @@
 package fr.plaglefleau
 
+import fr.plaglefleau.api.receive.ReceiveCardDebit
 import fr.plaglefleau.database.repositories.TokenSessionRepository
 import fr.plaglefleau.database.repositories.TransactionLogRepository
 import fr.plaglefleau.database.repositories.VolunteerRepository
 import fr.plaglefleau.api.response.ErrorMessage
 import fr.plaglefleau.api.receive.ReceiveVolunteerLogin
+import fr.plaglefleau.api.response.SuccessMessage
 import fr.plaglefleau.database.dto.TransactionLogDTO
 import fr.plaglefleau.database.repositories.CardRepository
 import io.ktor.http.*
@@ -243,6 +245,30 @@ fun Application.configureRouting() {
 
                             put("/debit") {
                                 // Subtract money from a card balance.
+                                val receiveCardDebit = call.receive<ReceiveCardDebit>()
+
+                                if(receiveCardDebit.id != null) {
+                                    cardRepository.debit(receiveCardDebit.id, receiveCardDebit.amount, receiveCardDebit.standName)
+                                } else if (receiveCardDebit.nfcCode != null) {
+                                    cardRepository.debit(receiveCardDebit.nfcCode, receiveCardDebit.amount, receiveCardDebit.standName)
+                                } else {
+                                    call.respond(
+                                        status = HttpStatusCode.BadRequest,
+                                        message = ErrorMessage(
+                                            message = "You need to specify either the nfc code or the id of the card",
+                                            code = 400
+                                        )
+                                    )
+                                    return@put
+                                }
+
+                                call.respond(
+                                    status = HttpStatusCode.OK,
+                                    message = SuccessMessage(
+                                        message = "The user has been successfully charged",
+                                        code = 200
+                                    )
+                                )
                             }
 
                             put("/credit") {
@@ -254,11 +280,11 @@ fun Application.configureRouting() {
                             }
                         }
 
-                        post("/create") {
+                        post {
                             // Create a new card.
                         }
 
-                        put("/update") {
+                        put {
                             // Update card information.
                         }
                     }
@@ -296,7 +322,7 @@ fun Application.configureRouting() {
                                     // Add inventory item to the stand.
                                 }
 
-                                put("/set") {
+                                put {
                                     // Set inventory quantity/price.
                                 }
 
