@@ -191,7 +191,7 @@ fun Application.configureRouting() {
                 authenticate("api") {
                     route("/cards") {
 
-                        // Card routes by numeric ID.
+                        // Card routes by identifier.
                         route("/{identifier}") {
                             get("/history") {
                                 // Fetch card history by internal database ID.
@@ -256,7 +256,22 @@ fun Application.configureRouting() {
                                 val card: Any = extractId ?: nfcCode
                                 val user: Any = receiveConnectCardUser.userId ?: receiveConnectCardUser.username!!
 
+                                /**
+                                 * TODO verifications:
+                                 *  - La carte existe
+                                 *  - L'utilisateur existe
+                                 *  - La carte n'est pas déjà connecter à un utilisateur
+                                 */
+
                                 cardRepository.connect(card, user)
+
+                                call.respond(
+                                    status = HttpStatusCode.OK,
+                                    message = SuccessMessage(
+                                        message = "The user `$user` has been successfully added to the card `$card`",
+                                        code = 200
+                                    )
+                                )
                             }
 
                             put("/debit") {
@@ -293,6 +308,14 @@ fun Application.configureRouting() {
                                     is Int -> cardRepository.credit(identifier, receiveCardCredit.amount, receiveCardCredit.standName)
                                     is String -> cardRepository.credit(identifier, receiveCardCredit.amount, receiveCardCredit.standName)
                                 }
+
+                                call.respond(
+                                    status = HttpStatusCode.OK,
+                                    message = SuccessMessage(
+                                        message = "The user has been successfully credited",
+                                        code = 200
+                                    )
+                                )
                             }
 
                             delete {
@@ -305,6 +328,14 @@ fun Application.configureRouting() {
                                     is Int -> cardRepository.delete(identifier)
                                     is String -> cardRepository.delete(identifier)
                                 }
+
+                                call.respond(
+                                    status = HttpStatusCode.OK,
+                                    message = SuccessMessage(
+                                        message = "The card has been deleted",
+                                        code = 200
+                                    )
+                                )
                             }
                         }
 
