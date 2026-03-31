@@ -19,6 +19,13 @@ import io.ktor.server.routing.*
 import java.util.*
 
 /**
+ * TODO vérification de la fonctionnalité des routes:
+ *  - api/v1/cards/{identifier}/credit
+ *  - api/v1/cards/{identifier}/debit
+ * TODO création des routes de création et de modification de carte
+ */
+
+/**
  * Defines the HTTP routes for the application.
  *
  * This file connects:
@@ -304,6 +311,15 @@ fun Application.configureRouting() {
 
                                 val identifier: Any = nfc.toIntOrNull() ?: nfc
 
+                                /**
+                                 * TODO verification:
+                                 *  - vérifier que le bénévolent à le droit de débiter
+                                 *  - vérifier que amount est positif
+                                 *  - vérifier que la carte existe
+                                 *  - le stand dans la base de donnée doit être nullable
+                                 *  - vérifier que la carte a les moyens de payer
+                                 */
+
                                 when (identifier) {
                                     is Int -> cardRepository.credit(identifier, receiveCardCredit.amount, receiveCardCredit.standName)
                                     is String -> cardRepository.credit(identifier, receiveCardCredit.amount, receiveCardCredit.standName)
@@ -323,6 +339,12 @@ fun Application.configureRouting() {
                                 val nfc = call.parameters["identifier"]!!
 
                                 val identifier: Any = nfc.toIntOrNull() ?: nfc
+
+                                /**
+                                 * TODO vérification:
+                                 *  - vérifier que le bénévolent à le droit d'éffectuer l'action
+                                 *  - vérifier que la carte existe
+                                 */
 
                                 when (identifier) {
                                     is Int -> cardRepository.delete(identifier)
