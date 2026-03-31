@@ -1,8 +1,6 @@
 package fr.plaglefleau.api.receive
 
-data class ReceiveCardDebit(
-    val id: Int?,
-    val nfcCode: String?,
+data class ReceiveCardTransaction(
     val amount: Double,
     val standName: String
 )

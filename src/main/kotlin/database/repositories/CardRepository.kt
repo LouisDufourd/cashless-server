@@ -4,11 +4,15 @@ import fr.plaglefleau.database.DatabaseFactory.dbQuery
 import fr.plaglefleau.database.entities.CardEntity
 import fr.plaglefleau.database.entities.StandEntity
 import fr.plaglefleau.database.entities.TransactionLogEntity
+import fr.plaglefleau.database.entities.UserEntity
 import fr.plaglefleau.database.tables.CardsTable
 import fr.plaglefleau.database.tables.StandsTable
 import fr.plaglefleau.database.tables.StandsTable.name
+import fr.plaglefleau.database.tables.UsersTable
+import org.jetbrains.exposed.v1.core.dao.id.EntityID
 import org.jetbrains.exposed.v1.core.eq
 import java.math.BigDecimal
+import kotlin.plus
 
 class CardRepository {
     fun getBalance(id: Int): Double? = dbQuery {
@@ -19,27 +23,72 @@ class CardRepository {
         CardEntity.find(CardsTable.nfc eq nfc).firstOrNull()?.balance?.toDouble()
     }
 
-    fun debit(id: Int, amount: Double, standName: String) = dbQuery {
-        CardEntity.findByIdAndUpdate(id) {
-            it.balance -= BigDecimal(amount)
-        }
-
-        TransactionLogEntity.new {
-            val card = CardEntity.findById(id)!!
-            this.amount = BigDecimal(amount)
-            this.standId = StandEntity.find { name eq standName }.first().id
-            this.cardId = card.id
-            this.userId = card.userId
-        }
+    fun debit(identifier: Int, amount: Double, standName: String) = dbQuery {
+        val card = getCardEntity(identifier)!!
+        card.balance -= BigDecimal(amount)
+        logTransaction(card, amount, standName)
     }
 
-    fun debit(nfcCode: String, amount: Double, standName: String) = dbQuery {
-        CardEntity.findSingleByAndUpdate(CardsTable.nfc eq nfcCode) {
-            it.balance -= BigDecimal(amount)
-        }
+    fun debit(identifier: String, amount: Double, standName: String) = dbQuery {
+        val card = getCardEntity(identifier)!!
+        card.balance -= BigDecimal(amount)
+        logTransaction(card, amount, standName)
+    }
 
+    fun connect(cardId: Int, userId: Int) = dbQuery {
+        val userRepository = UserRepository()
+        val cardEntity = getCardEntity(cardId)!!
+        cardEntity.userId = userRepository.getUser(userId)!!.id
+    }
+
+    fun connect(cardId: Int, username: String) = dbQuery {
+        val userRepository = UserRepository()
+        val cardEntity = getCardEntity(cardId)!!
+        cardEntity.userId = userRepository.getUser(username)!!.id
+    }
+
+    fun connect(nfcCode: String, userId: Int) = dbQuery {
+        val userRepository = UserRepository()
+        val cardEntity = getCardEntity(nfcCode)!!
+        cardEntity.userId = userRepository.getUser(userId)!!.id
+    }
+
+    fun connect(nfcCode: String, username: String) = dbQuery {
+        val userRepository = UserRepository()
+        val cardEntity = getCardEntity(nfcCode)!!
+        cardEntity.userId = userRepository.getUser(username)!!.id
+    }
+
+    fun getCardEntity(id: Int): CardEntity? = dbQuery {
+        CardEntity.findById(id)
+    }
+
+    fun getCardEntity(nfc: String): CardEntity? = dbQuery {
+        CardEntity.find(CardsTable.nfc eq nfc).firstOrNull()
+    }
+
+    fun credit(identifier: Int, amount: Double, standName: String) = dbQuery {
+        val card = getCardEntity(identifier)!!
+        card.balance += BigDecimal(amount)
+        logTransaction(card, amount, standName)
+    }
+
+    fun credit(identifier: String, amount: Double, standName: String) = dbQuery {
+        val card = getCardEntity(identifier)!!
+        card.balance += BigDecimal(amount)
+        logTransaction(card, amount, standName)
+    }
+
+    fun delete(identifier: Int) {
+        CardEntity.findById(identifier)!!.delete()
+    }
+
+    fun delete(identifier: String) {
+        CardEntity.find(CardsTable.nfc eq identifier).first().delete()
+    }
+
+    private fun logTransaction(card: CardEntity, amount: Double, standName: String) {
         TransactionLogEntity.new {
-            val card = CardEntity.find(CardsTable.nfc eq nfcCode).first()
             this.amount = BigDecimal(amount)
             this.standId = StandEntity.find { name eq standName }.first().id
             this.cardId = card.id

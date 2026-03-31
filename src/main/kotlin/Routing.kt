@@ -1,13 +1,13 @@
 package fr.plaglefleau
 
-import fr.plaglefleau.api.receive.ReceiveCardDebit
+import fr.plaglefleau.api.receive.ReceiveCardTransaction
+import fr.plaglefleau.api.receive.ReceiveConnectCardUser
 import fr.plaglefleau.database.repositories.TokenSessionRepository
 import fr.plaglefleau.database.repositories.TransactionLogRepository
 import fr.plaglefleau.database.repositories.VolunteerRepository
 import fr.plaglefleau.api.response.ErrorMessage
 import fr.plaglefleau.api.receive.ReceiveVolunteerLogin
 import fr.plaglefleau.api.response.SuccessMessage
-import fr.plaglefleau.database.dto.TransactionLogDTO
 import fr.plaglefleau.database.repositories.CardRepository
 import io.ktor.http.*
 import io.ktor.server.application.*
@@ -51,9 +51,10 @@ fun Application.configureRouting() {
                 // If authentication failed for some reason, the principal will be null.
                 val principal = call.principal<JWTPrincipal>()
                 if (principal == null) {
-                    call.respond(
-                        status = HttpStatusCode.Unauthorized,
-                        message = "error" to " No credentials provided"
+                    sendError(
+                        message = "No credentials provided",
+                        code = 401,
+                        status = HttpStatusCode.Unauthorized
                     )
                     return@get
                 }
@@ -85,12 +86,10 @@ fun Application.configureRouting() {
 
                         // If login failed, return a 401 response.
                         if (id == null) {
-                            call.respond(
-                                status = HttpStatusCode.Unauthorized,
-                                message = ErrorMessage(
-                                    message = "Invalid credentials",
-                                    code = 401
-                                )
+                            sendError(
+                                message = "Invalid credentials",
+                                code = 401,
+                                status = HttpStatusCode.Unauthorized
                             )
                             return@post
                         }
@@ -140,9 +139,10 @@ fun Application.configureRouting() {
                             // Read the refresh token principal validated by the auth provider.
                             val principal = call.principal<JWTPrincipal>()
                             if (principal == null) {
-                                call.respond(
-                                    status = HttpStatusCode.Unauthorized,
-                                    message = mapOf("error" to "No credentials provided")
+                                sendError(
+                                    message = "No credentials provided",
+                                    code = 401,
+                                    status = HttpStatusCode.Unauthorized
                                 )
                                 return@post
                             }
@@ -197,14 +197,14 @@ fun Application.configureRouting() {
                                 // Fetch card history by internal database ID.
                                 val page = call.parameters["page"]?.toIntOrNull()
                                 val size = call.parameters["size"]?.toIntOrNull()
-                                val codeNFC = call.parameters["identifier"]!!
+                                val nfc = call.parameters["identifier"]!!
 
-                                val id = codeNFC.toIntOrNull()
+                                val identifier: Any = nfc.toIntOrNull() ?: nfc
 
-                                val transactionLog = if(id != null) {
-                                    transactionLogRepository.getCardTransactionLog(cardId = id, page, pageSize = size)
-                                } else {
-                                    transactionLogRepository.getCardTransactionLog(codeNFC, page, pageSize = size)
+                                val transactionLog = when (identifier) {
+                                    is Int -> transactionLogRepository.getCardTransactionLog(identifier, page, pageSize = size)
+                                    is String -> transactionLogRepository.getCardTransactionLog(identifier, page, pageSize = size)
+                                    else -> error("Unexpected identifier types: ${identifier::class}")
                                 }
 
                                 call.respond(
@@ -221,14 +221,14 @@ fun Application.configureRouting() {
 
                             get("/balance") {
                                 // Return the current balance for this card.
-                                val codeNFC = call.parameters["identifier"]!!
+                                val nfc = call.parameters["identifier"]!!
 
-                                val id = codeNFC.toIntOrNull()
+                                val identifier: Any = nfc.toIntOrNull() ?: nfc
 
-                                val balance = if(id != null) {
-                                    cardRepository.getBalance(id)
-                                } else {
-                                    cardRepository.getBalance(codeNFC)
+                                val balance = when (identifier) {
+                                    is Int -> cardRepository.getBalance(identifier)
+                                    is String -> cardRepository.getBalance(identifier)
+                                    else -> error("Unexpected identifier types: ${identifier::class}")
                                 }
 
                                 call.respond(
@@ -241,25 +241,35 @@ fun Application.configureRouting() {
 
                             put("/connect") {
                                 // Connect a card to a user.
+                                val receiveConnectCardUser = call.receive<ReceiveConnectCardUser>()
+                                val nfcCode = call.parameters["identifier"]!!
+                                val extractId = nfcCode.toIntOrNull()
+
+                                if (receiveConnectCardUser.userId == null && receiveConnectCardUser.username == null) {
+                                    sendError(
+                                        message = "You need to specify either the user id or the username",
+                                        code = 400,
+                                        status = HttpStatusCode.BadRequest
+                                    )
+                                }
+
+                                val card: Any = extractId ?: nfcCode
+                                val user: Any = receiveConnectCardUser.userId ?: receiveConnectCardUser.username!!
+
+                                cardRepository.connect(card, user)
                             }
 
                             put("/debit") {
                                 // Subtract money from a card balance.
-                                val receiveCardDebit = call.receive<ReceiveCardDebit>()
+                                val receiveCardDebit = call.receive<ReceiveCardTransaction>()
 
-                                if(receiveCardDebit.id != null) {
-                                    cardRepository.debit(receiveCardDebit.id, receiveCardDebit.amount, receiveCardDebit.standName)
-                                } else if (receiveCardDebit.nfcCode != null) {
-                                    cardRepository.debit(receiveCardDebit.nfcCode, receiveCardDebit.amount, receiveCardDebit.standName)
-                                } else {
-                                    call.respond(
-                                        status = HttpStatusCode.BadRequest,
-                                        message = ErrorMessage(
-                                            message = "You need to specify either the nfc code or the id of the card",
-                                            code = 400
-                                        )
-                                    )
-                                    return@put
+                                val nfc = call.parameters["identifier"]!!
+
+                                val identifier: Any = nfc.toIntOrNull() ?: nfc
+
+                                when (identifier) {
+                                    is Int -> cardRepository.debit(identifier, receiveCardDebit.amount, receiveCardDebit.standName)
+                                    is String -> cardRepository.debit(identifier, receiveCardDebit.amount, receiveCardDebit.standName)
                                 }
 
                                 call.respond(
@@ -273,10 +283,28 @@ fun Application.configureRouting() {
 
                             put("/credit") {
                                 // Add money to a card balance.
+                                val receiveCardCredit = call.receive<ReceiveCardTransaction>()
+
+                                val nfc = call.parameters["identifier"]!!
+
+                                val identifier: Any = nfc.toIntOrNull() ?: nfc
+
+                                when (identifier) {
+                                    is Int -> cardRepository.credit(identifier, receiveCardCredit.amount, receiveCardCredit.standName)
+                                    is String -> cardRepository.credit(identifier, receiveCardCredit.amount, receiveCardCredit.standName)
+                                }
                             }
 
                             delete {
                                 // Delete or deactivate the card.
+                                val nfc = call.parameters["identifier"]!!
+
+                                val identifier: Any = nfc.toIntOrNull() ?: nfc
+
+                                when (identifier) {
+                                    is Int -> cardRepository.delete(identifier)
+                                    is String -> cardRepository.delete(identifier)
+                                }
                             }
                         }
 
@@ -358,4 +386,22 @@ fun Application.configureRouting() {
             }
         }
     }
+}
+
+private suspend fun RoutingContext.sendError(message: String, code: Int, status: HttpStatusCode) {
+    call.respond(
+        status = status,
+        message = ErrorMessage(
+            message = message,
+            code = code
+        )
+    )
+}
+
+private fun CardRepository.connect(card: Any, user: Any) = when {
+    card is Int && user is Int -> connect(card, user)
+    card is Int && user is String -> connect(card, user)
+    card is String && user is Int -> connect(card, user)
+    card is String && user is String -> connect(card, user)
+    else -> error("Unexpected identifier types: ${card::class} / ${user::class}")
 }
