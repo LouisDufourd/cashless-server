@@ -4,15 +4,10 @@ import fr.plaglefleau.database.DatabaseFactory.dbQuery
 import fr.plaglefleau.database.entities.CardEntity
 import fr.plaglefleau.database.entities.StandEntity
 import fr.plaglefleau.database.entities.TransactionLogEntity
-import fr.plaglefleau.database.entities.UserEntity
 import fr.plaglefleau.database.tables.CardsTable
-import fr.plaglefleau.database.tables.StandsTable
 import fr.plaglefleau.database.tables.StandsTable.name
-import fr.plaglefleau.database.tables.UsersTable
-import org.jetbrains.exposed.v1.core.dao.id.EntityID
 import org.jetbrains.exposed.v1.core.eq
 import java.math.BigDecimal
-import kotlin.plus
 
 class CardRepository {
     fun getBalance(id: Int): Double? = dbQuery {
