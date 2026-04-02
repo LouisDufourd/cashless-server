@@ -1,7 +1,8 @@
 package fr.plaglefleau
 
-import fr.plaglefleau.api.receive.ReceiveCardTransaction
+import fr.plaglefleau.api.receive.ReceiveDebitCard
 import fr.plaglefleau.api.receive.ReceiveConnectCardUser
+import fr.plaglefleau.api.receive.ReceiveCreditCard
 import fr.plaglefleau.database.repositories.TokenSessionRepository
 import fr.plaglefleau.database.repositories.TransactionLogRepository
 import fr.plaglefleau.database.repositories.VolunteerRepository
@@ -283,11 +284,19 @@ fun Application.configureRouting() {
 
                             put("/debit") {
                                 // Subtract money from a card balance.
-                                val receiveCardDebit = call.receive<ReceiveCardTransaction>()
+                                val receiveCardDebit = call.receive<ReceiveDebitCard>()
 
                                 val nfc = call.parameters["identifier"]!!
 
                                 val identifier: Any = nfc.toIntOrNull() ?: nfc
+
+                                /**
+                                 * TODO verifications:
+                                 *  - assez d'argent
+                                 *  - amount positifs
+                                 *  - la carte existe
+                                 *  - verifier que le bénévolent à le droit de débiter
+                                 */
 
                                 when (identifier) {
                                     is Int -> cardRepository.debit(identifier, receiveCardDebit.amount, receiveCardDebit.standName)
@@ -305,7 +314,7 @@ fun Application.configureRouting() {
 
                             put("/credit") {
                                 // Add money to a card balance.
-                                val receiveCardCredit = call.receive<ReceiveCardTransaction>()
+                                val receiveCardCredit = call.receive<ReceiveCreditCard>()
 
                                 val nfc = call.parameters["identifier"]!!
 
@@ -316,45 +325,19 @@ fun Application.configureRouting() {
                                  *  - vérifier que le bénévolent à le droit de débiter
                                  *  - vérifier que amount est positif
                                  *  - vérifier que la carte existe
-                                 *  - le stand dans la base de donnée doit être nullable
+                                 *  - vérifier que le stand existe
                                  *  - vérifier que la carte a les moyens de payer
                                  */
 
                                 when (identifier) {
-                                    is Int -> cardRepository.credit(identifier, receiveCardCredit.amount, receiveCardCredit.standName)
-                                    is String -> cardRepository.credit(identifier, receiveCardCredit.amount, receiveCardCredit.standName)
+                                    is Int -> cardRepository.credit(identifier, receiveCardCredit.amount)
+                                    is String -> cardRepository.credit(identifier, receiveCardCredit.amount)
                                 }
 
                                 call.respond(
                                     status = HttpStatusCode.OK,
                                     message = SuccessMessage(
                                         message = "The user has been successfully credited",
-                                        code = 200
-                                    )
-                                )
-                            }
-
-                            delete {
-                                // Delete or deactivate the card.
-                                val nfc = call.parameters["identifier"]!!
-
-                                val identifier: Any = nfc.toIntOrNull() ?: nfc
-
-                                /**
-                                 * TODO vérification:
-                                 *  - vérifier que le bénévolent à le droit d'éffectuer l'action
-                                 *  - vérifier que la carte existe
-                                 */
-
-                                when (identifier) {
-                                    is Int -> cardRepository.delete(identifier)
-                                    is String -> cardRepository.delete(identifier)
-                                }
-
-                                call.respond(
-                                    status = HttpStatusCode.OK,
-                                    message = SuccessMessage(
-                                        message = "The card has been deleted",
                                         code = 200
                                     )
                                 )

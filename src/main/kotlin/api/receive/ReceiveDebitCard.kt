@@ -1,6 +1,6 @@
 package fr.plaglefleau.api.receive
 
-data class ReceiveCardTransaction(
+data class ReceiveDebitCard(
     val amount: Double,
     val standName: String
 )

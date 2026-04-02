@@ -62,27 +62,17 @@ class CardRepository {
         CardEntity.find(CardsTable.nfc eq nfc).firstOrNull()
     }
 
-    fun credit(identifier: Int, amount: Double, standName: String) = dbQuery {
+    fun credit(identifier: Int, amount: Double) = dbQuery {
         val card = getCardEntity(identifier)!!
         card.balance += BigDecimal(amount)
-        logTransaction(card, amount, standName)
     }
 
-    fun credit(identifier: String, amount: Double, standName: String) = dbQuery {
+    fun credit(identifier: String, amount: Double) = dbQuery {
         val card = getCardEntity(identifier)!!
         card.balance += BigDecimal(amount)
-        logTransaction(card, amount, standName)
     }
 
-    fun delete(identifier: Int) {
-        CardEntity.findById(identifier)!!.delete()
-    }
-
-    fun delete(identifier: String) {
-        CardEntity.find(CardsTable.nfc eq identifier).first().delete()
-    }
-
-    private fun logTransaction(card: CardEntity, amount: Double, standName: String) {
+    private fun logTransaction(card: CardEntity, amount: Double, standName: String) = dbQuery {
         TransactionLogEntity.new {
             this.amount = BigDecimal(amount)
             this.standId = StandEntity.find { name eq standName }.first().id
