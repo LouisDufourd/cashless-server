@@ -72,12 +72,19 @@ class CardRepository {
         card.balance += BigDecimal(amount)
     }
 
-    private fun logTransaction(card: CardEntity, amount: Double, standName: String) = dbQuery {
+    private fun logTransaction(card: CardEntity, amount: Double, standName: String) {
         TransactionLogEntity.new {
             this.amount = BigDecimal(amount)
             this.standId = StandEntity.find { name eq standName }.first().id
             this.cardId = card.id
             this.userId = card.userId
+        }
+    }
+
+    fun createCard(pin: Int, nfcCode: String) = dbQuery {
+        CardEntity.new {
+            this.nfc = nfcCode
+            this.pin = pin
         }
     }
 }

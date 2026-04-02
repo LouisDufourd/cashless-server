@@ -2,6 +2,7 @@ package fr.plaglefleau
 
 import fr.plaglefleau.api.receive.ReceiveDebitCard
 import fr.plaglefleau.api.receive.ReceiveConnectCardUser
+import fr.plaglefleau.api.receive.ReceiveCreateCard
 import fr.plaglefleau.api.receive.ReceiveCreditCard
 import fr.plaglefleau.database.repositories.TokenSessionRepository
 import fr.plaglefleau.database.repositories.TransactionLogRepository
@@ -342,14 +343,31 @@ fun Application.configureRouting() {
                                     )
                                 )
                             }
+
+                            put {
+                                // Update card information.
+                            }
                         }
 
                         post {
                             // Create a new card.
-                        }
+                            val receiveCreateCard = call.receive<ReceiveCreateCard>()
 
-                        put {
-                            // Update card information.
+                            cardRepository.createCard(receiveCreateCard.pin, receiveCreateCard.nfcCode)
+
+                            /**
+                             * TODO verifications:
+                             *  - Verifier que le bénévolent à les permissions
+                             *  - Vérifier que la carte n'existe pas déjà
+                             */
+
+                            call.respond(
+                                HttpStatusCode.Created,
+                                message = SuccessMessage(
+                                    message = "The cards was created with success",
+                                    code = 201
+                                )
+                            )
                         }
                     }
 
