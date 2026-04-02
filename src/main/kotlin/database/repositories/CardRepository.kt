@@ -54,11 +54,11 @@ class CardRepository {
         cardEntity.userId = userRepository.getUser(username)!!.id
     }
 
-    fun getCardEntity(id: Int): CardEntity? = dbQuery {
+    private fun getCardEntity(id: Int): CardEntity? = dbQuery {
         CardEntity.findById(id)
     }
 
-    fun getCardEntity(nfc: String): CardEntity? = dbQuery {
+    private fun getCardEntity(nfc: String): CardEntity? = dbQuery {
         CardEntity.find(CardsTable.nfc eq nfc).firstOrNull()
     }
 
@@ -81,10 +81,28 @@ class CardRepository {
         }
     }
 
-    fun createCard(pin: Int, nfcCode: String) = dbQuery {
+    fun create(pin: Int, nfcCode: String) = dbQuery {
         CardEntity.new {
             this.nfc = nfcCode
             this.pin = pin
         }
+    }
+
+    fun update(cardId: Int, pin: Int?, amount: Double?) = dbQuery {
+        val card = CardEntity.findById(cardId)!!
+        if(pin != null)
+            card.pin = pin
+
+        if(amount != null)
+            card.balance = BigDecimal(amount)
+    }
+
+    fun update(nfcCode: String, pin: Int?, amount: Double?) = dbQuery {
+        val card = CardEntity.find(CardsTable.nfc eq nfcCode).first()
+        if(pin != null)
+            card.pin = pin
+
+        if(amount != null)
+            card.balance = BigDecimal(amount)
     }
 }

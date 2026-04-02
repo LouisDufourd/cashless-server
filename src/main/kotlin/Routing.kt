@@ -4,6 +4,7 @@ import fr.plaglefleau.api.receive.ReceiveDebitCard
 import fr.plaglefleau.api.receive.ReceiveConnectCardUser
 import fr.plaglefleau.api.receive.ReceiveCreateCard
 import fr.plaglefleau.api.receive.ReceiveCreditCard
+import fr.plaglefleau.api.receive.ReceiveUpdateCard
 import fr.plaglefleau.database.repositories.TokenSessionRepository
 import fr.plaglefleau.database.repositories.TransactionLogRepository
 import fr.plaglefleau.database.repositories.VolunteerRepository
@@ -346,6 +347,24 @@ fun Application.configureRouting() {
 
                             put {
                                 // Update card information.
+                                val receiveUpdateCard = call.receive<ReceiveUpdateCard>()
+
+                                val nfc = call.parameters["identifier"]!!
+
+                                val identifier: Any = nfc.toIntOrNull() ?: nfc
+
+                                when(identifier) {
+                                    is Int -> cardRepository.update(identifier, receiveUpdateCard.pin, receiveUpdateCard.amount)
+                                    is String -> cardRepository.update(identifier, receiveUpdateCard.pin, receiveUpdateCard.amount)
+                                }
+
+                                call.respond(
+                                    status = HttpStatusCode.OK,
+                                    SuccessMessage(
+                                        "The card `$identifier` has been updated successfully",
+                                        200
+                                    )
+                                )
                             }
                         }
 
@@ -353,7 +372,7 @@ fun Application.configureRouting() {
                             // Create a new card.
                             val receiveCreateCard = call.receive<ReceiveCreateCard>()
 
-                            cardRepository.createCard(receiveCreateCard.pin, receiveCreateCard.nfcCode)
+                            cardRepository.create(receiveCreateCard.pin, receiveCreateCard.nfcCode)
 
                             /**
                              * TODO verifications:
