@@ -461,6 +461,11 @@ fun Application.configureRouting() {
     }
 }
 
+/**
+ * Sends a structured JSON error response with the given [message], numeric [code], and HTTP [status].
+ *
+ * Wraps [ErrorMessage] so every error response has a consistent shape across all routes.
+ */
 private suspend fun RoutingContext.sendError(message: String, code: Int, status: HttpStatusCode) {
     call.respond(
         status = status,
@@ -471,6 +476,13 @@ private suspend fun RoutingContext.sendError(message: String, code: Int, status:
     )
 }
 
+/**
+ * Extension that dispatches [CardRepository.connect] to the correct overload based on
+ * the runtime types of [card] and [user].
+ *
+ * Both identifiers can be either an [Int] (internal database ID) or a [String] (NFC code / username),
+ * giving four possible combinations. Any other type combination is treated as a programming error.
+ */
 private fun CardRepository.connect(card: Any, user: Any) = when {
     card is Int && user is Int -> connect(card, user)
     card is Int && user is String -> connect(card, user)

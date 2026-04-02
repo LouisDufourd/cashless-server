@@ -9,69 +9,135 @@ import fr.plaglefleau.database.tables.StandsTable.name
 import org.jetbrains.exposed.v1.core.eq
 import java.math.BigDecimal
 
+/**
+ * Handles all database operations related to NFC cards.
+ *
+ * Cards can be identified either by their internal integer ID or by their NFC code string.
+ * Most operations are therefore overloaded to accept both identifier types.
+ *
+ * All database access goes through [dbQuery], which wraps operations in an Exposed transaction.
+ */
 class CardRepository {
+
+    /**
+     * Returns the current balance of the card identified by its internal database [id],
+     * or null if no card with that ID exists.
+     */
     fun getBalance(id: Int): Double? = dbQuery {
         CardEntity.findById(id)?.balance?.toDouble()
     }
 
+    /**
+     * Returns the current balance of the card identified by its [nfc] code,
+     * or null if no card with that NFC code exists.
+     */
     fun getBalance(nfc: String): Double? = dbQuery {
         CardEntity.find(CardsTable.nfc eq nfc).firstOrNull()?.balance?.toDouble()
     }
 
+    /**
+     * Subtracts [amount] from the balance of the card with the given internal [identifier],
+     * then records a transaction log entry for the [standName] that performed the debit.
+     *
+     * Throws if no card is found (!! operator).
+     */
     fun debit(identifier: Int, amount: Double, standName: String) = dbQuery {
         val card = getCardEntity(identifier)!!
         card.balance -= BigDecimal(amount)
         logTransaction(card, amount, standName)
     }
 
+    /**
+     * Subtracts [amount] from the balance of the card with the given NFC [identifier],
+     * then records a transaction log entry for the [standName] that performed the debit.
+     *
+     * Throws if no card is found (!! operator).
+     */
     fun debit(identifier: String, amount: Double, standName: String) = dbQuery {
         val card = getCardEntity(identifier)!!
         card.balance -= BigDecimal(amount)
         logTransaction(card, amount, standName)
     }
 
+    /**
+     * Associates the card identified by [cardId] with the user identified by [userId].
+     * Looks up both entities and sets the card's userId foreign key.
+     */
     fun connect(cardId: Int, userId: Int) = dbQuery {
         val userRepository = UserRepository()
         val cardEntity = getCardEntity(cardId)!!
         cardEntity.userId = userRepository.getUser(userId)!!.id
     }
 
+    /**
+     * Associates the card identified by [cardId] with the user identified by [username].
+     */
     fun connect(cardId: Int, username: String) = dbQuery {
         val userRepository = UserRepository()
         val cardEntity = getCardEntity(cardId)!!
         cardEntity.userId = userRepository.getUser(username)!!.id
     }
 
+    /**
+     * Associates the card identified by its [nfcCode] with the user identified by [userId].
+     */
     fun connect(nfcCode: String, userId: Int) = dbQuery {
         val userRepository = UserRepository()
         val cardEntity = getCardEntity(nfcCode)!!
         cardEntity.userId = userRepository.getUser(userId)!!.id
     }
 
+    /**
+     * Associates the card identified by its [nfcCode] with the user identified by [username].
+     */
     fun connect(nfcCode: String, username: String) = dbQuery {
         val userRepository = UserRepository()
         val cardEntity = getCardEntity(nfcCode)!!
         cardEntity.userId = userRepository.getUser(username)!!.id
     }
 
+    /**
+     * Looks up a [CardEntity] by its internal database [id].
+     * Returns null if no card with that ID exists.
+     */
     private fun getCardEntity(id: Int): CardEntity? = dbQuery {
         CardEntity.findById(id)
     }
 
+    /**
+     * Looks up a [CardEntity] by its [nfc] code.
+     * Returns null if no card with that NFC code exists.
+     */
     private fun getCardEntity(nfc: String): CardEntity? = dbQuery {
         CardEntity.find(CardsTable.nfc eq nfc).firstOrNull()
     }
 
+    /**
+     * Adds [amount] to the balance of the card with the given internal [identifier].
+     *
+     * Throws if no card is found (!! operator).
+     */
     fun credit(identifier: Int, amount: Double) = dbQuery {
         val card = getCardEntity(identifier)!!
         card.balance += BigDecimal(amount)
     }
 
+    /**
+     * Adds [amount] to the balance of the card with the given NFC [identifier].
+     *
+     * Throws if no card is found (!! operator).
+     */
     fun credit(identifier: String, amount: Double) = dbQuery {
         val card = getCardEntity(identifier)!!
         card.balance += BigDecimal(amount)
     }
 
+    /**
+     * Creates a new [TransactionLogEntity] recording that a debit of [amount] was made on [card]
+     * at the stand named [standName].
+     *
+     * The stand is looked up by name; this will throw if no matching stand exists.
+     */
     private fun logTransaction(card: CardEntity, amount: Double, standName: String) {
         TransactionLogEntity.new {
             this.amount = BigDecimal(amount)
@@ -81,6 +147,10 @@ class CardRepository {
         }
     }
 
+    /**
+     * Creates a new card in the database with the given [pin] and [nfcCode].
+     * The initial balance defaults to whatever value is set in the entity defaults.
+     */
     fun create(pin: Int, nfcCode: String) = dbQuery {
         CardEntity.new {
             this.nfc = nfcCode
@@ -88,21 +158,29 @@ class CardRepository {
         }
     }
 
+    /**
+     * Updates the [pin] and/or [balance][amount] of the card identified by [cardId].
+     * Fields with a null value are left unchanged.
+     */
     fun update(cardId: Int, pin: Int?, amount: Double?) = dbQuery {
         val card = CardEntity.findById(cardId)!!
-        if(pin != null)
+        if (pin != null)
             card.pin = pin
 
-        if(amount != null)
+        if (amount != null)
             card.balance = BigDecimal(amount)
     }
 
+    /**
+     * Updates the [pin] and/or [balance][amount] of the card identified by its [nfcCode].
+     * Fields with a null value are left unchanged.
+     */
     fun update(nfcCode: String, pin: Int?, amount: Double?) = dbQuery {
         val card = CardEntity.find(CardsTable.nfc eq nfcCode).first()
-        if(pin != null)
+        if (pin != null)
             card.pin = pin
 
-        if(amount != null)
+        if (amount != null)
             card.balance = BigDecimal(amount)
     }
 }
