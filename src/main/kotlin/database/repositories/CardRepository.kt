@@ -1,6 +1,7 @@
 package fr.plaglefleau.database.repositories
 
 import fr.plaglefleau.database.DatabaseFactory.dbQuery
+import fr.plaglefleau.database.dto.CardDTO
 import fr.plaglefleau.database.entities.CardEntity
 import fr.plaglefleau.database.entities.StandEntity
 import fr.plaglefleau.database.entities.TransactionLogEntity
@@ -182,5 +183,27 @@ class CardRepository {
 
         if (amount != null)
             card.balance = BigDecimal(amount)
+    }
+
+    fun getCard(identifier: Int): CardDTO? = dbQuery {
+        val entity = CardEntity.findById(identifier) ?: return@dbQuery null
+        CardDTO(
+            id = entity.id.value,
+            nfcCode = entity.nfc,
+            entity.pin,
+            balance = entity.balance.toDouble(),
+            userId = entity.userId?.value
+        )
+    }
+
+    fun getCard(identifier: String) = dbQuery {
+        val entity = CardEntity.find { CardsTable.nfc eq identifier }.firstOrNull() ?: return@dbQuery null
+        CardDTO(
+            id = entity.id.value,
+            nfcCode = entity.nfc,
+            entity.pin,
+            balance = entity.balance.toDouble(),
+            userId = entity.userId?.value
+        )
     }
 }

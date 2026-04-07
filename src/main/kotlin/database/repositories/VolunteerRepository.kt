@@ -2,8 +2,11 @@ package fr.plaglefleau.database.repositories
 
 import fr.plaglefleau.database.DatabaseFactory.dbQuery
 import fr.plaglefleau.database.entities.VolunteerEntity
+import fr.plaglefleau.database.tables.RolesTable
 import fr.plaglefleau.database.tables.VolunteersTable
+import org.jetbrains.exposed.v1.core.JoinType
 import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.jdbc.selectAll
 
 class VolunteerRepository {
     fun login(username: String, password: String) : Int? {
@@ -15,5 +18,18 @@ class VolunteerRepository {
                 VolunteersTable.password eq password
             }.firstOrNull()?.id?.value
         }
+    }
+
+    fun getRole(volunteerId: Int): String? = dbQuery {
+        VolunteersTable.join(
+                otherTable = RolesTable,
+                joinType = JoinType.INNER,
+                onColumn = VolunteersTable.roleId,
+                otherColumn = RolesTable.id
+            )
+            .selectAll()
+            .where { VolunteersTable.id eq volunteerId }
+            .firstOrNull()
+            ?.get(RolesTable.name)
     }
 }
