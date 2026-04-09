@@ -15,8 +15,7 @@ class VolunteerEntity(id : EntityID<Int>) : IntEntity(id) {
     // Login password.
     var password by VolunteersTable.password
 
-    // Role association.
-    var roleId by VolunteersTable.roleId
+    var role by VolunteersTable.role
 
     // Civility association.
     var civilityId by VolunteersTable.civilityId

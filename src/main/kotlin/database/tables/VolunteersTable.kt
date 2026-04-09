@@ -9,9 +9,8 @@ object VolunteersTable : IntIdTable("volunteers") {
     // Hashed password for volunteer login.
     val password = varchar("password", 255)
 
-    // Foreign key to the role table.
     // Each volunteer must belong to one role.
-    val roleId = reference("fk_role_id", RolesTable.id)
+    val role = enumerationByName<RoleName>("role", 45)
 
     // Foreign key to the civility table.
     // Each volunteer is linked to one civility record.

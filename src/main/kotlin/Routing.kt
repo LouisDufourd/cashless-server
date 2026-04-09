@@ -528,7 +528,7 @@ public suspend fun RoutingContext.sendError(message: String, code: Int, status: 
  * @return the volunteer role if it exists, or `null` if the request is unauthenticated or the role is missing
  *         (in which case a 401 response is sent)
  */
-private suspend fun RoutingContext.requireVolunteerRole(volunteerRepository: VolunteerRepository): String? {
+private suspend fun RoutingContext.requireVolunteerRole(volunteerRepository: VolunteerRepository): RoleName? {
     val principal = call.principal<JWTPrincipal>() ?: return null
     val volunteerId = principal.payload.subject.toInt()
     val volunteerRole = volunteerRepository.getRole(volunteerId)
