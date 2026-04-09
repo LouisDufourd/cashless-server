@@ -16,6 +16,7 @@ import fr.plaglefleau.api.validation.CardValidation.canDebitCard
 import fr.plaglefleau.api.validation.CardValidation.cardExist
 import fr.plaglefleau.database.repositories.CardRepository
 import fr.plaglefleau.api.validation.CardValidation.verifyInvalidAmount
+import fr.plaglefleau.database.tables.RoleName
 import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.auth.*
