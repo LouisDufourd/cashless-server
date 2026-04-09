@@ -2,6 +2,7 @@ package fr.plaglefleau.database.repositories
 
 import fr.plaglefleau.database.DatabaseFactory.dbQuery
 import fr.plaglefleau.database.entities.VolunteerEntity
+import fr.plaglefleau.database.tables.RoleName
 import fr.plaglefleau.database.tables.RolesTable
 import fr.plaglefleau.database.tables.VolunteersTable
 import org.jetbrains.exposed.v1.core.JoinType
@@ -20,16 +21,11 @@ class VolunteerRepository {
         }
     }
 
-    fun getRole(volunteerId: Int): String? = dbQuery {
-        VolunteersTable.join(
-                otherTable = RolesTable,
-                joinType = JoinType.INNER,
-                onColumn = VolunteersTable.roleId,
-                otherColumn = RolesTable.id
-            )
+    fun getRole(volunteerId: Int): RoleName? = dbQuery {
+        VolunteersTable
             .selectAll()
             .where { VolunteersTable.id eq volunteerId }
             .firstOrNull()
-            ?.get(RolesTable.name)
+            ?.get(VolunteersTable.role)
     }
 }

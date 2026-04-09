@@ -160,11 +160,11 @@ class CardRepository {
     }
 
     /**
-     * Updates the [pin] and/or [balance][amount] of the card identified by [cardId].
+     * Updates the [pin] and/or [balance][amount] of the card identified by [identifier].
      * Fields with a null value are left unchanged.
      */
-    fun update(cardId: Int, pin: Int?, amount: Double?) = dbQuery {
-        val card = CardEntity.findById(cardId)!!
+    fun update(identifier: Int, pin: Int?, amount: Double?) = dbQuery {
+        val card = CardEntity.findById(identifier)!!
         if (pin != null)
             card.pin = pin
 
@@ -173,11 +173,11 @@ class CardRepository {
     }
 
     /**
-     * Updates the [pin] and/or [balance][amount] of the card identified by its [nfcCode].
+     * Updates the [pin] and/or [balance][amount] of the card identified by its [identifier].
      * Fields with a null value are left unchanged.
      */
-    fun update(nfcCode: String, pin: Int?, amount: Double?) = dbQuery {
-        val card = CardEntity.find(CardsTable.nfc eq nfcCode).first()
+    fun update(identifier: String, pin: Int?, amount: Double?) = dbQuery {
+        val card = CardEntity.find(CardsTable.nfc eq identifier).first()
         if (pin != null)
             card.pin = pin
 
