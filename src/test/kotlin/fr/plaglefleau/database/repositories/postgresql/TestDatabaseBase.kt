@@ -9,15 +9,6 @@ abstract class TestDatabaseBase {
 
     @BeforeTest
     fun setUpDatabase() {
-        // TODO: initialize the test database connection here
-        // Example:
-        // DatabaseFactory.init(
-        //     url = "jdbc:postgresql://localhost:9876/cashless",
-        //     user = "cashless_user",
-        //     password = "cashless_password"
-        // )
-        //
-        // TODO: run schema/init script or ensure the DB is already initialized
         DatabaseFactory.init(
             database = "cashless-test",
             user = "cashless_user-test",
