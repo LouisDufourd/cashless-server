@@ -1,10 +1,11 @@
-package fr.plaglefleau.database.repositories
+package fr.plaglefleau.database.repositories.postgresql
 
 import fr.plaglefleau.database.DatabaseFactory.dbQuery
 import fr.plaglefleau.database.dto.CardDTO
 import fr.plaglefleau.database.entities.CardEntity
 import fr.plaglefleau.database.entities.StandEntity
 import fr.plaglefleau.database.entities.TransactionLogEntity
+import fr.plaglefleau.database.repositories.ICardRepository
 import fr.plaglefleau.database.tables.CardsTable
 import fr.plaglefleau.database.tables.StandsTable.name
 import org.jetbrains.exposed.v1.core.eq
@@ -18,13 +19,13 @@ import java.math.BigDecimal
  *
  * All database access goes through [dbQuery], which wraps operations in an Exposed transaction.
  */
-class CardRepository {
+class CardRepository: ICardRepository {
 
     /**
      * Returns the current balance of the card identified by its internal database [id],
      * or null if no card with that ID exists.
      */
-    fun getBalance(id: Int): Double? = dbQuery {
+    override fun getBalance(id: Int): Double? = dbQuery {
         CardEntity.findById(id)?.balance?.toDouble()
     }
 
@@ -32,7 +33,7 @@ class CardRepository {
      * Returns the current balance of the card identified by its [nfc] code,
      * or null if no card with that NFC code exists.
      */
-    fun getBalance(nfc: String): Double? = dbQuery {
+    override fun getBalance(nfc: String): Double? = dbQuery {
         CardEntity.find(CardsTable.nfc eq nfc).firstOrNull()?.balance?.toDouble()
     }
 
@@ -42,7 +43,7 @@ class CardRepository {
      *
      * Throws if no card is found (!! operator).
      */
-    fun debit(identifier: Int, amount: Double, standName: String) = dbQuery {
+    override fun debit(identifier: Int, amount: Double, standName: String) = dbQuery {
         val card = getCardEntity(identifier)!!
         card.balance -= BigDecimal(amount)
         logTransaction(card, amount, standName)
@@ -54,7 +55,7 @@ class CardRepository {
      *
      * Throws if no card is found (!! operator).
      */
-    fun debit(identifier: String, amount: Double, standName: String) = dbQuery {
+    override fun debit(identifier: String, amount: Double, standName: String) = dbQuery {
         val card = getCardEntity(identifier)!!
         card.balance -= BigDecimal(amount)
         logTransaction(card, amount, standName)
@@ -64,7 +65,7 @@ class CardRepository {
      * Associates the card identified by [cardId] with the user identified by [userId].
      * Looks up both entities and sets the card's userId foreign key.
      */
-    fun connect(cardId: Int, userId: Int) = dbQuery {
+    override fun connect(cardId: Int, userId: Int) = dbQuery {
         val userRepository = UserRepository()
         val cardEntity = getCardEntity(cardId)!!
         cardEntity.userId = userRepository.getUser(userId)!!.id
@@ -73,7 +74,7 @@ class CardRepository {
     /**
      * Associates the card identified by [cardId] with the user identified by [username].
      */
-    fun connect(cardId: Int, username: String) = dbQuery {
+    override fun connect(cardId: Int, username: String) = dbQuery {
         val userRepository = UserRepository()
         val cardEntity = getCardEntity(cardId)!!
         cardEntity.userId = userRepository.getUser(username)!!.id
@@ -82,7 +83,7 @@ class CardRepository {
     /**
      * Associates the card identified by its [nfcCode] with the user identified by [userId].
      */
-    fun connect(nfcCode: String, userId: Int) = dbQuery {
+    override fun connect(nfcCode: String, userId: Int) = dbQuery {
         val userRepository = UserRepository()
         val cardEntity = getCardEntity(nfcCode)!!
         cardEntity.userId = userRepository.getUser(userId)!!.id
@@ -91,7 +92,7 @@ class CardRepository {
     /**
      * Associates the card identified by its [nfcCode] with the user identified by [username].
      */
-    fun connect(nfcCode: String, username: String) = dbQuery {
+    override fun connect(nfcCode: String, username: String) = dbQuery {
         val userRepository = UserRepository()
         val cardEntity = getCardEntity(nfcCode)!!
         cardEntity.userId = userRepository.getUser(username)!!.id
@@ -118,7 +119,7 @@ class CardRepository {
      *
      * Throws if no card is found (!! operator).
      */
-    fun credit(identifier: Int, amount: Double) = dbQuery {
+    override fun credit(identifier: Int, amount: Double) = dbQuery {
         val card = getCardEntity(identifier)!!
         card.balance += BigDecimal(amount)
     }
@@ -128,7 +129,7 @@ class CardRepository {
      *
      * Throws if no card is found (!! operator).
      */
-    fun credit(identifier: String, amount: Double) = dbQuery {
+    override fun credit(identifier: String, amount: Double) = dbQuery {
         val card = getCardEntity(identifier)!!
         card.balance += BigDecimal(amount)
     }
@@ -152,7 +153,7 @@ class CardRepository {
      * Creates a new card in the database with the given [pin] and [nfcCode].
      * The initial balance defaults to whatever value is set in the entity defaults.
      */
-    fun create(pin: Int, nfcCode: String) = dbQuery {
+    override fun create(pin: Int, nfcCode: String) = dbQuery {
         CardEntity.new {
             this.nfc = nfcCode
             this.pin = pin
@@ -163,7 +164,7 @@ class CardRepository {
      * Updates the [pin] and/or [balance][amount] of the card identified by [identifier].
      * Fields with a null value are left unchanged.
      */
-    fun update(identifier: Int, pin: Int?, amount: Double?) = dbQuery {
+    override fun update(identifier: Int, pin: Int?, amount: Double?) = dbQuery {
         val card = CardEntity.findById(identifier)!!
         if (pin != null)
             card.pin = pin
@@ -176,7 +177,7 @@ class CardRepository {
      * Updates the [pin] and/or [balance][amount] of the card identified by its [identifier].
      * Fields with a null value are left unchanged.
      */
-    fun update(identifier: String, pin: Int?, amount: Double?) = dbQuery {
+    override fun update(identifier: String, pin: Int?, amount: Double?) = dbQuery {
         val card = CardEntity.find(CardsTable.nfc eq identifier).first()
         if (pin != null)
             card.pin = pin
@@ -185,7 +186,7 @@ class CardRepository {
             card.balance = BigDecimal(amount)
     }
 
-    fun getCard(identifier: Int): CardDTO? = dbQuery {
+    override fun getCard(identifier: Int): CardDTO? = dbQuery {
         val entity = CardEntity.findById(identifier) ?: return@dbQuery null
         CardDTO(
             id = entity.id.value,
@@ -196,7 +197,7 @@ class CardRepository {
         )
     }
 
-    fun getCard(identifier: String) = dbQuery {
+    override fun getCard(identifier: String) = dbQuery {
         val entity = CardEntity.find { CardsTable.nfc eq identifier }.firstOrNull() ?: return@dbQuery null
         CardDTO(
             id = entity.id.value,

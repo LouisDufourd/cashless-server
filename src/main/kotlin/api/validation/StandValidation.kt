@@ -1,12 +1,12 @@
 package fr.plaglefleau.api.validation
 
-import fr.plaglefleau.database.repositories.StandRepository
+import fr.plaglefleau.database.repositories.IStandRepository
 
-object StandValidation {
+class StandValidation(private val standRepository: IStandRepository) {
     fun standExist(identifier: Any): Boolean {
         return when(identifier) {
-            is Int -> StandRepository().getStand(identifier) != null
-            is String -> StandRepository().getStand(identifier) != null
+            is Int -> standRepository.getStand(identifier) != null
+            is String -> standRepository.getStand(identifier) != null
             else -> false
         }
     }

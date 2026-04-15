@@ -1,16 +1,17 @@
-package fr.plaglefleau.database.repositories
+package fr.plaglefleau.database.repositories.postgresql
 
 import fr.plaglefleau.database.DatabaseFactory.dbQuery
 import fr.plaglefleau.database.dto.TokenSessionDTO
 import fr.plaglefleau.database.entities.TokenSessionEntity
 import fr.plaglefleau.database.entities.VolunteerEntity
+import fr.plaglefleau.database.repositories.ITokenSessionRepository
 import fr.plaglefleau.database.tables.TokenSessionTable
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.update
 import kotlin.time.Instant
 
-class TokenSessionRepository {
-    fun findActiveTokenSession(refreshJti: String) : TokenSessionDTO? = dbQuery {
+class TokenSessionRepository: ITokenSessionRepository {
+    override fun findActiveTokenSession(refreshJti: String) : TokenSessionDTO? = dbQuery {
         // Find a refresh-session row by its JWT identifier.
         TokenSessionEntity.find {
             TokenSessionTable.refreshJti eq refreshJti
@@ -26,16 +27,17 @@ class TokenSessionRepository {
         }.firstOrNull()
     }
 
-    fun revokeTokenSession(refreshJti: String) = dbQuery {
+    override fun revokeTokenSession(refreshJti: String) = dbQuery {
         // Mark the session as revoked so the refresh token can no longer be reused.
         TokenSessionTable.update(where = {
             TokenSessionTable.refreshJti eq refreshJti
         }) {
             it[revoked] = true
         }
+        return@dbQuery
     }
 
-    fun createTokenSession(volunteerId: Int, refreshJti: String, expiration: Long) = dbQuery {
+    override fun createTokenSession(volunteerId: Int, refreshJti: String, expiration: Long) = dbQuery {
         // Create a new session row tied to the volunteer and refresh token.
         // VolunteerEntity.findById(...) retrieves the owning volunteer before saving the session.
         TokenSessionEntity.new {
@@ -43,5 +45,7 @@ class TokenSessionRepository {
             this.refreshJti = refreshJti
             this.expireAt = Instant.fromEpochMilliseconds(expiration)
         }
+
+        return@dbQuery
     }
 }

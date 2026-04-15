@@ -5,17 +5,17 @@ import fr.plaglefleau.api.receive.ReceiveConnectCardUser
 import fr.plaglefleau.api.receive.ReceiveCreateCard
 import fr.plaglefleau.api.receive.ReceiveCreditCard
 import fr.plaglefleau.api.receive.ReceiveUpdateCard
-import fr.plaglefleau.database.repositories.TokenSessionRepository
-import fr.plaglefleau.database.repositories.TransactionLogRepository
-import fr.plaglefleau.database.repositories.VolunteerRepository
+import fr.plaglefleau.database.repositories.postgresql.TokenSessionRepository
+import fr.plaglefleau.database.repositories.postgresql.TransactionLogRepository
+import fr.plaglefleau.database.repositories.postgresql.VolunteerRepository
 import fr.plaglefleau.api.response.ErrorMessage
 import fr.plaglefleau.api.receive.ReceiveVolunteerLogin
 import fr.plaglefleau.api.response.SuccessMessage
 import fr.plaglefleau.api.validation.CardValidation
-import fr.plaglefleau.api.validation.CardValidation.canDebitCard
-import fr.plaglefleau.api.validation.CardValidation.cardExist
-import fr.plaglefleau.database.repositories.CardRepository
-import fr.plaglefleau.api.validation.CardValidation.verifyInvalidAmount
+import fr.plaglefleau.api.validation.StandValidation
+import fr.plaglefleau.database.repositories.postgresql.CardRepository
+import fr.plaglefleau.api.validation.VolunteerValidation
+import fr.plaglefleau.database.repositories.postgresql.StandRepository
 import fr.plaglefleau.database.tables.RoleName
 import io.ktor.http.*
 import io.ktor.server.application.*
@@ -25,7 +25,6 @@ import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import java.util.*
-import java.util.function.Function
 
 
 /**
@@ -54,6 +53,10 @@ fun Application.configureRouting() {
     val volunteerRepository = VolunteerRepository()
     val transactionLogRepository = TransactionLogRepository()
     val cardRepository = CardRepository()
+
+    val cardValidation = CardValidation(CardRepository())
+    val volunteerValidation = VolunteerValidation(VolunteerRepository())
+    val standValidation = StandValidation(StandRepository())
 
     routing {
         // Simple public endpoint used to verify the application is running.
@@ -209,7 +212,7 @@ fun Application.configureRouting() {
                                 val size = call.parameters["size"]?.toIntOrNull()
                                 val nfc = call.parameters["identifier"]!!
 
-                                requireVolunteerRole(volunteerRepository) ?: return@get
+                                getVolunteerRole(volunteerRepository) ?: return@get
 
                                 val identifier: Any = nfc.toIntOrNull() ?: nfc
 
@@ -238,7 +241,7 @@ fun Application.configureRouting() {
                                 // Return the current balance for this card.
                                 val nfc = call.parameters["identifier"]!!
 
-                                requireVolunteerRole(volunteerRepository) ?: return@get
+                                getVolunteerRole(volunteerRepository) ?: return@get
 
                                 val identifier: Any = nfc.toIntOrNull() ?: nfc
 
@@ -262,7 +265,7 @@ fun Application.configureRouting() {
                                 val nfcCode = call.parameters["identifier"]!!
                                 val extractId = nfcCode.toIntOrNull()
 
-                                requireVolunteerRole(volunteerRepository) ?: return@put
+                                getVolunteerRole(volunteerRepository) ?: return@put
 
                                 if (receiveConnectCardUser.userId == null && receiveConnectCardUser.username == null) {
                                     sendError(
@@ -293,11 +296,6 @@ fun Application.configureRouting() {
                             }
 
                             put("/debit") {
-                                /**
-                                 * TODO verifications:
-                                 *  - verifier que le bénévolent existe
-                                 *  - verifier que le bénévolent à le droit de débiter
-                                 */
 
                                 val debitRequest = call.receive<ReceiveDebitCard>()
                                 val identifierValue = call.parameters["identifier"] ?: run {
@@ -309,11 +307,12 @@ fun Application.configureRouting() {
                                     return@put
                                 }
 
-                                requireVolunteerRole(volunteerRepository) ?: return@put
+                                val volunteerId = getAuthenticatedVolunteerIdOrSendError() ?: return@put
+                                requireVolunteerWithoutRolesOrSendError(volunteerId, RoleName.SELLER, RoleName.MANAGER)
 
                                 val identifier: Any = identifierValue.toIntOrNull() ?: identifierValue
 
-                                if (verifyInvalidAmount(debitRequest.amount)) {
+                                if (cardValidation.verifyInvalidAmount(debitRequest.amount)) {
                                     sendError(
                                         message = "The amount needs to be positive",
                                         code = 400,
@@ -322,7 +321,7 @@ fun Application.configureRouting() {
                                     return@put
                                 }
 
-                                if (cardExist(identifier)) {
+                                if (cardValidation.cardExist(identifier)) {
                                     sendError(
                                         message = "There is no card with the identifier `$identifier`.",
                                         code = 404,
@@ -331,7 +330,7 @@ fun Application.configureRouting() {
                                     return@put
                                 }
 
-                                if(canDebitCard(identifier, debitRequest.amount)) {
+                                if(cardValidation.canDebitCard(identifier, debitRequest.amount)) {
                                     sendError(
                                         message = "The card doesn't have enough money to be debited",
                                         code = 409,
@@ -367,18 +366,30 @@ fun Application.configureRouting() {
                                 // Add money to a card balance.
                                 val receiveCardCredit = call.receive<ReceiveCreditCard>()
 
-                                val nfc = call.parameters["identifier"]!!
+                                val identifierParam = call.parameters["identifier"]!!
 
-                                val identifier: Any = nfc.toIntOrNull() ?: nfc
+                                val volunteerId = getAuthenticatedVolunteerIdOrSendError() ?: return@put
+                                requireVolunteerWithoutRolesOrSendError(volunteerId, RoleName.RECHARGE)
 
-                                /**
-                                 * TODO verification:
-                                 *  - vérifier que le bénévolent à le droit de débiter
-                                 *  - vérifier que amount est positif
-                                 *  - vérifier que la carte existe
-                                 *  - vérifier que le stand existe
-                                 *  - vérifier que la carte a les moyens de payer
-                                 */
+                                val identifier: Any = identifierParam.toIntOrNull() ?: identifierParam
+
+                                if (cardValidation.cardExist(identifier)) {
+                                    sendError(
+                                        message = "There is no card with the identifier `$identifier`.",
+                                        code = 404,
+                                        status = HttpStatusCode.NotFound
+                                    )
+                                    return@put
+                                }
+
+                                if (cardValidation.verifyInvalidAmount(receiveCardCredit.amount)) {
+                                    sendError(
+                                        message = "The amount needs to be positive",
+                                        code = 400,
+                                        status = HttpStatusCode.BadRequest
+                                    )
+                                    return@put
+                                }
 
                                 when (identifier) {
                                     is Int -> cardRepository.credit(identifier, receiveCardCredit.amount)
@@ -396,9 +407,12 @@ fun Application.configureRouting() {
                                 // Update card information.
                                 val receiveUpdateCard = call.receive<ReceiveUpdateCard>()
 
-                                val nfc = call.parameters["identifier"]!!
+                                val identifierParam = call.parameters["identifier"]!!
 
-                                val identifier: Any = nfc.toIntOrNull() ?: nfc
+                                val volunteerId = getAuthenticatedVolunteerIdOrSendError() ?: return@put
+                                requireVolunteerWithoutRolesOrSendError(volunteerId, RoleName.ORGANIZER)
+
+                                val identifier: Any = identifierParam.toIntOrNull() ?: identifierParam
 
                                 when (identifier) {
                                     is Int -> cardRepository.update(
@@ -424,11 +438,16 @@ fun Application.configureRouting() {
 
                             cardRepository.create(receiveCreateCard.pin, receiveCreateCard.nfcCode)
 
-                            /**
-                             * TODO verifications:
-                             *  - Verifier que le bénévolent à les permissions
-                             *  - Vérifier que la carte n'existe pas déjà
-                             */
+                            val volunteerId = getAuthenticatedVolunteerIdOrSendError() ?: return@post
+                            requireVolunteerWithoutRolesOrSendError(volunteerId, RoleName.ORGANIZER)
+
+                            if(cardValidation.cardExist(receiveCreateCard.nfcCode)) {
+                                sendError(
+                                    status = HttpStatusCode.Conflict,
+                                    message = "This card already exist",
+                                    code = 409
+                                )
+                            }
 
                             call.respond(
                                 HttpStatusCode.Created, message = SuccessMessage(
@@ -529,7 +548,38 @@ public suspend fun RoutingContext.sendError(message: String, code: Int, status: 
  * @return the volunteer role if it exists, or `null` if the request is unauthenticated or the role is missing
  *         (in which case a 401 response is sent)
  */
-private suspend fun RoutingContext.requireVolunteerRole(volunteerRepository: VolunteerRepository): RoleName? {
+private suspend fun RoutingContext.getAuthenticatedVolunteerIdOrSendError(): Int? {
+    val volunteerId = call.principal<JWTPrincipal>()?.subject?.toIntOrNull()
+
+    if (volunteerId == null) {
+        sendError(
+            status = HttpStatusCode.NotFound,
+            message = "Unable to extract the volunteer id from the authorization",
+            code = 404
+        )
+        return null
+    }
+
+    return volunteerId
+}
+
+private suspend fun RoutingContext.requireVolunteerWithoutRolesOrSendError(
+    volunteerId: Int,
+    vararg allowedRoles: RoleName
+): Boolean {
+    if (VolunteerValidation(VolunteerRepository()).volunteerHasRole(volunteerId, *allowedRoles)) {
+        sendError(
+            status = HttpStatusCode.Forbidden,
+            message = "You are not allowed to perform this action",
+            code = 403
+        )
+        return false
+    }
+
+    return true
+}
+
+private suspend fun RoutingContext.getVolunteerRole(volunteerRepository: VolunteerRepository): RoleName? {
     val principal = call.principal<JWTPrincipal>() ?: return null
     val volunteerId = principal.payload.subject.toInt()
     val volunteerRole = volunteerRepository.getRole(volunteerId)

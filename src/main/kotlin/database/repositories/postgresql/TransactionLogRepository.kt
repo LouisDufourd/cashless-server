@@ -1,7 +1,8 @@
-package fr.plaglefleau.database.repositories
+package fr.plaglefleau.database.repositories.postgresql
 
 import fr.plaglefleau.database.DatabaseFactory.dbQuery
 import fr.plaglefleau.database.dto.TransactionLogDTO
+import fr.plaglefleau.database.repositories.ITransactionLogRepository
 import fr.plaglefleau.database.tables.CardsTable
 import fr.plaglefleau.database.tables.StandsTable
 import fr.plaglefleau.database.tables.TransactionLogsTable
@@ -10,8 +11,8 @@ import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.selectAll
 
-class TransactionLogRepository {
-    fun getCardTransactionLog(cardId: Int, page: Int?, pageSize: Int?): List<TransactionLogDTO> = dbQuery {
+class TransactionLogRepository : ITransactionLogRepository {
+    override fun getCardTransactionLog(cardId: Int, page: Int?, pageSize: Int?): List<TransactionLogDTO> = dbQuery {
         TransactionLogsTable
             .join(
                 otherTable = CardsTable,
@@ -41,7 +42,7 @@ class TransactionLogRepository {
             }
     }
 
-    fun getCardTransactionLog(nfc: String, page: Int?, pageSize: Int?): List<TransactionLogDTO> = dbQuery {
+    override fun getCardTransactionLog(nfc: String, page: Int?, pageSize: Int?): List<TransactionLogDTO> = dbQuery {
         TransactionLogsTable
             .join(
                 otherTable = CardsTable,

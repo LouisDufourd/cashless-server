@@ -35,6 +35,22 @@ dependencies {
     implementation("org.jetbrains.exposed:exposed-kotlin-datetime:1.1.1")
     implementation("org.postgresql:postgresql:42.7.10")
 
-    testImplementation("org.jetbrains.kotlin:kotlin-test-junit:$kotlin_version")
-    testImplementation("io.ktor:ktor-server-test-host")
+    testImplementation(kotlin("test"))
+    testImplementation("io.mockk:mockk:1.13.13")
+    testImplementation("org.jetbrains.kotlin:kotlin-test-junit5")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+}
+
+tasks.test {
+    useJUnitPlatform()
+}
+
+tasks.register<Test>("validationTest") {
+    group = "verification"
+    description = "Runs validation tests"
+
+    useJUnitPlatform()
+
+    testClassesDirs = sourceSets["test"].output.classesDirs
+    classpath = sourceSets["test"].runtimeClasspath
 }

@@ -3,7 +3,7 @@ package fr.plaglefleau
 import com.auth0.jwt.JWT
 import com.auth0.jwt.algorithms.Algorithm
 import fr.plaglefleau.Config.jwtConfig
-import fr.plaglefleau.database.repositories.TokenSessionRepository
+import fr.plaglefleau.database.repositories.postgresql.TokenSessionRepository
 import io.ktor.server.application.*
 import io.ktor.server.auth.*
 import io.ktor.server.auth.jwt.*

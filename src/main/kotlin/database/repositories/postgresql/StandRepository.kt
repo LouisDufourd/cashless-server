@@ -1,13 +1,14 @@
-package fr.plaglefleau.database.repositories
+package fr.plaglefleau.database.repositories.postgresql
 
 import fr.plaglefleau.database.DatabaseFactory.dbQuery
 import fr.plaglefleau.database.dto.StandDTO
 import fr.plaglefleau.database.entities.StandEntity
+import fr.plaglefleau.database.repositories.IStandRepository
 import fr.plaglefleau.database.tables.StandsTable
 import org.jetbrains.exposed.v1.core.eq
 
-class StandRepository {
-    fun getStand(identifier: Int) : StandDTO? = dbQuery() {
+class StandRepository: IStandRepository {
+    override fun getStand(identifier: Int) : StandDTO? = dbQuery {
         val entity = StandEntity.findById(identifier) ?: return@dbQuery null
         StandDTO(
             id = entity.id.value,
@@ -16,7 +17,7 @@ class StandRepository {
         )
     }
 
-    fun getStand(identifier: String) : StandDTO? = dbQuery() {
+    override fun getStand(identifier: String) : StandDTO? = dbQuery {
         val entity = StandEntity.find(StandsTable.name eq identifier).firstOrNull() ?: return@dbQuery null
         StandDTO(
             id = entity.id.value,
