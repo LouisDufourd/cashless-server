@@ -26,29 +26,14 @@ import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import java.util.*
 
-
 /**
- * TODO vérification de la fonctionnalité des routes:
- *  - api/v1/cards/{identifier}/credit
- *  - api/v1/cards/{identifier}/debit
- * TODO création des routes de création et de modification de carte
- */
-
-/**
- * Defines the HTTP routes for the application.
+ * Configures all HTTP routes for the application.
  *
- * This file connects:
- * - Request parsing
- * - Authentication
- * - Repository access
- * - Token generation
- * - API responses
- *
- * The routes are grouped by domain for readability.
+ * This includes authentication routes, card operations, and helper endpoints
+ * that rely on repository access and authorization checks.
  */
 fun Application.configureRouting() {
-    // Repositories are created once and reused for all requests.
-    // This keeps route handlers simple and avoids rebuilding repository objects repeatedly.
+    // Create repository instances once and reuse them across all requests.
     val tokenSessionRepository = TokenSessionRepository()
     val volunteerRepository = VolunteerRepository()
     val transactionLogRepository = TransactionLogRepository()
@@ -59,98 +44,73 @@ fun Application.configureRouting() {
     val standValidation = StandValidation(StandRepository())
 
     routing {
-        // Simple public endpoint used to verify the application is running.
         get("/") {
             call.respondText("Hello World!")
         }
 
-        // Protected endpoint that requires a valid access token.
         authenticate("api") {
             get("/protected") {
-                // Read the authenticated JWT principal from the current request.
-                // If authentication failed for some reason, the principal will be null.
                 val principal = call.principal<JWTPrincipal>()
                 if (principal == null) {
                     sendError(
-                        message = "No credentials provided", code = 401, status = HttpStatusCode.Unauthorized
+                        message = "No credentials provided",
+                        code = 401,
+                        status = HttpStatusCode.Unauthorized
                     )
                     return@get
                 }
 
-                // The subject contains the volunteer ID stored in the token.
                 val userId = principal.payload.subject
                 call.respondText("Token is valid for user $userId")
             }
         }
 
-        // Group all API routes under /api/v1.
         route("/api") {
             route("/v1") {
                 route("/auth") {
-
-                    // Login endpoint:
-                    // - reads username/password from the request body
-                    // - checks credentials in the database
-                    // - creates a refresh session
-                    // - returns both access and refresh tokens
                     post("/login") {
                         val login = call.receive<ReceiveVolunteerLogin>()
-
-                        // Query the database for a volunteer matching the provided credentials.
                         val id: Int? = volunteerRepository.login(login.username, login.password)
-
-                        // Read JWT configuration from application settings.
                         val config = Config.jwtConfig(environment)
 
-                        // If login failed, return a 401 response.
                         if (id == null) {
                             sendError(
-                                message = "Invalid credentials", code = 401, status = HttpStatusCode.Unauthorized
+                                message = "Invalid credentials",
+                                code = 401,
+                                status = HttpStatusCode.Unauthorized
                             )
                             return@post
                         }
 
-                        // Create a unique ID for the refresh token session.
                         val refreshJti = UUID.randomUUID().toString()
-
-                        // Calculate when the refresh token should expire.
                         val refreshExpiration = System.currentTimeMillis() + config.refreshExpiration * 1000
 
-                        // Save the refresh session in the database.
-                        // This allows later validation and revocation.
                         tokenSessionRepository.createTokenSession(
-                            volunteerId = id, refreshJti, expiration = refreshExpiration
+                            volunteerId = id,
+                            refreshJti = refreshJti,
+                            expiration = refreshExpiration
                         )
 
-                        // Build the access token used for normal API calls.
                         val accessToken = generateToken(
                             volunteerId = id.toString(),
                             tokenUUID = UUID.randomUUID().toString(),
                             expirationDate = System.currentTimeMillis() + config.expiration * 1000
                         )
 
-                        // Build the refresh token tied to the stored session.
                         val refreshToken = generateRefreshToken(
                             volunteerId = id.toString(),
                             refreshTokenJTI = refreshJti,
                             expirationDate = refreshExpiration
                         )
 
-                        // Return both tokens to the client.
                         call.respond(
                             status = HttpStatusCode.OK,
                             message = mapOf("accessToken" to accessToken, "refreshToken" to refreshToken)
                         )
                     }
 
-                    // Refresh endpoint:
-                    // - only accepts a valid refresh token
-                    // - revokes the old session
-                    // - creates a new session
-                    // - returns a fresh access/refresh token pair
                     authenticate("refresh") {
                         post("/refresh") {
-                            // Read the refresh token principal validated by the auth provider.
                             val principal = call.principal<JWTPrincipal>()
                             if (principal == null) {
                                 sendError(
@@ -161,37 +121,30 @@ fun Application.configureRouting() {
                                 return@post
                             }
 
-                            // Subject contains the volunteer ID.
                             val id = principal.payload.subject
 
-                            // Revoke the old refresh session so the old token cannot be reused.
                             tokenSessionRepository.revokeTokenSession(principal.jwtId!!)
 
-                            // Create a brand-new refresh session identifier.
                             val newRefreshJti = UUID.randomUUID().toString()
 
-                            // Store the new refresh session in the DB.
                             tokenSessionRepository.createTokenSession(
                                 volunteerId = id.toInt(),
                                 refreshJti = newRefreshJti,
                                 expiration = System.currentTimeMillis() + Config.jwtConfig(environment).refreshExpiration * 1000
                             )
 
-                            // Generate a new access token.
                             val newAccessToken = generateToken(
                                 volunteerId = id,
                                 tokenUUID = UUID.randomUUID().toString(),
                                 expirationDate = System.currentTimeMillis() + Config.jwtConfig(environment).expiration * 1000
                             )
 
-                            // Generate the new refresh token tied to the new DB session.
                             val newRefreshToken = generateRefreshToken(
                                 volunteerId = id,
                                 refreshTokenJTI = newRefreshJti,
                                 expirationDate = System.currentTimeMillis() + Config.jwtConfig(environment).refreshExpiration * 1000
                             )
 
-                            // Return the new tokens to the client.
                             call.respond(
                                 status = HttpStatusCode.OK,
                                 message = mapOf("token" to newAccessToken, "refreshToken" to newRefreshToken)
@@ -200,50 +153,42 @@ fun Application.configureRouting() {
                     }
                 }
 
-                // Protected business API routes.
-                // These routes require a valid access token.
                 authenticate("api") {
                     route("/cards") {
-                        // Card routes by identifier.
                         route("/{identifier}") {
                             get("/history") {
-                                // Fetch card history by internal database ID.
                                 val page = call.parameters["page"]?.toIntOrNull()
                                 val size = call.parameters["size"]?.toIntOrNull()
-                                val nfc = call.parameters["identifier"]!!
+                                val identifierValue = call.parameters["identifier"]!!
 
                                 getVolunteerRole(volunteerRepository) ?: return@get
 
-                                val identifier: Any = nfc.toIntOrNull() ?: nfc
+                                val identifier: Any = identifierValue.toIntOrNull() ?: identifierValue
 
                                 val transactionLog = when (identifier) {
-                                    is Int -> transactionLogRepository.getCardTransactionLog(
-                                        identifier, page, pageSize = size
-                                    )
-
-                                    is String -> transactionLogRepository.getCardTransactionLog(
-                                        identifier, page, pageSize = size
-                                    )
-
+                                    is Int -> transactionLogRepository.getCardTransactionLog(identifier, page, pageSize = size)
+                                    is String -> transactionLogRepository.getCardTransactionLog(identifier, page, pageSize = size)
                                     else -> error("Unexpected identifier types: ${identifier::class}")
                                 }
 
                                 call.respond(
-                                    status = HttpStatusCode.OK, message = mapOf(
-                                        "transactions" to transactionLog, "pagination" to mapOf(
-                                            "page" to (page ?: 1), "size" to (size ?: 10)
+                                    status = HttpStatusCode.OK,
+                                    message = mapOf(
+                                        "transactions" to transactionLog,
+                                        "pagination" to mapOf(
+                                            "page" to (page ?: 1),
+                                            "size" to (size ?: 10)
                                         )
                                     )
                                 )
                             }
 
                             get("/balance") {
-                                // Return the current balance for this card.
-                                val nfc = call.parameters["identifier"]!!
+                                val identifierValue = call.parameters["identifier"]!!
 
                                 getVolunteerRole(volunteerRepository) ?: return@get
 
-                                val identifier: Any = nfc.toIntOrNull() ?: nfc
+                                val identifier: Any = identifierValue.toIntOrNull() ?: identifierValue
 
                                 val balance = when (identifier) {
                                     is Int -> cardRepository.getBalance(identifier)
@@ -252,15 +197,13 @@ fun Application.configureRouting() {
                                 }
 
                                 call.respond(
-                                    status = HttpStatusCode.OK, message = mapOf(
-                                        "balance" to "$balance€"
-                                    )
+                                    status = HttpStatusCode.OK,
+                                    message = mapOf("balance" to "$balance€")
                                 )
                             }
 
-                            //Will probably remove it
+                            // Temporary endpoint for connecting a card to a user.
                             put("/connect") {
-                                // Connect a card to a user.
                                 val receiveConnectCardUser = call.receive<ReceiveConnectCardUser>()
                                 val nfcCode = call.parameters["identifier"]!!
                                 val extractId = nfcCode.toIntOrNull()
@@ -273,22 +216,23 @@ fun Application.configureRouting() {
                                         code = 400,
                                         status = HttpStatusCode.BadRequest
                                     )
+                                    return@put
                                 }
 
                                 val card: Any = extractId ?: nfcCode
                                 val user: Any = receiveConnectCardUser.userId ?: receiveConnectCardUser.username!!
 
                                 /**
-                                 * TODO verifications:
-                                 *  - La carte existe
-                                 *  - L'utilisateur existe
-                                 *  - La carte n'est pas déjà connecter à un utilisateur
+                                 * Validates that the target card and user exist and that the card is not already linked.
+                                 *
+                                 * These checks are still marked as TODO because they depend on the repository
+                                 * methods that will enforce the final business rules.
                                  */
-
                                 cardRepository.connect(card, user)
 
                                 call.respond(
-                                    status = HttpStatusCode.OK, message = SuccessMessage(
+                                    status = HttpStatusCode.OK,
+                                    message = SuccessMessage(
                                         message = "The user `$user` has been successfully added to the card `$card`",
                                         code = 200
                                     )
@@ -296,7 +240,6 @@ fun Application.configureRouting() {
                             }
 
                             put("/debit") {
-
                                 val debitRequest = call.receive<ReceiveDebitCard>()
                                 val identifierValue = call.parameters["identifier"] ?: run {
                                     sendError(
@@ -330,7 +273,7 @@ fun Application.configureRouting() {
                                     return@put
                                 }
 
-                                if(cardValidation.canDebitCard(identifier, debitRequest.amount)) {
+                                if (cardValidation.canDebitCard(identifier, debitRequest.amount)) {
                                     sendError(
                                         message = "The card doesn't have enough money to be debited",
                                         code = 409,
@@ -340,17 +283,8 @@ fun Application.configureRouting() {
                                 }
 
                                 when (identifier) {
-                                    is Int -> cardRepository.debit(
-                                        identifier,
-                                        debitRequest.amount,
-                                        debitRequest.standName
-                                    )
-
-                                    is String -> cardRepository.debit(
-                                        identifier,
-                                        debitRequest.amount,
-                                        debitRequest.standName
-                                    )
+                                    is Int -> cardRepository.debit(identifier, debitRequest.amount, debitRequest.standName)
+                                    is String -> cardRepository.debit(identifier, debitRequest.amount, debitRequest.standName)
                                 }
 
                                 call.respond(
@@ -363,9 +297,7 @@ fun Application.configureRouting() {
                             }
 
                             put("/credit") {
-                                // Add money to a card balance.
                                 val receiveCardCredit = call.receive<ReceiveCreditCard>()
-
                                 val identifierParam = call.parameters["identifier"]!!
 
                                 val volunteerId = getAuthenticatedVolunteerIdOrSendError() ?: return@put
@@ -397,16 +329,16 @@ fun Application.configureRouting() {
                                 }
 
                                 call.respond(
-                                    status = HttpStatusCode.OK, message = SuccessMessage(
-                                        message = "The user has been successfully credited", code = 200
+                                    status = HttpStatusCode.OK,
+                                    message = SuccessMessage(
+                                        message = "The user has been successfully credited",
+                                        code = 200
                                     )
                                 )
                             }
 
                             put {
-                                // Update card information.
                                 val receiveUpdateCard = call.receive<ReceiveUpdateCard>()
-
                                 val identifierParam = call.parameters["identifier"]!!
 
                                 val volunteerId = getAuthenticatedVolunteerIdOrSendError() ?: return@put
@@ -415,25 +347,21 @@ fun Application.configureRouting() {
                                 val identifier: Any = identifierParam.toIntOrNull() ?: identifierParam
 
                                 when (identifier) {
-                                    is Int -> cardRepository.update(
-                                        identifier, receiveUpdateCard.pin, receiveUpdateCard.amount
-                                    )
-
-                                    is String -> cardRepository.update(
-                                        identifier, receiveUpdateCard.pin, receiveUpdateCard.amount
-                                    )
+                                    is Int -> cardRepository.update(identifier, receiveUpdateCard.pin, receiveUpdateCard.amount)
+                                    is String -> cardRepository.update(identifier, receiveUpdateCard.pin, receiveUpdateCard.amount)
                                 }
 
                                 call.respond(
-                                    status = HttpStatusCode.OK, SuccessMessage(
-                                        "The card `$identifier` has been updated successfully", 200
+                                    status = HttpStatusCode.OK,
+                                    message = SuccessMessage(
+                                        "The card `$identifier` has been updated successfully",
+                                        200
                                     )
                                 )
                             }
                         }
 
                         post {
-                            // Create a new card.
                             val receiveCreateCard = call.receive<ReceiveCreateCard>()
 
                             cardRepository.create(receiveCreateCard.pin, receiveCreateCard.nfcCode)
@@ -441,7 +369,7 @@ fun Application.configureRouting() {
                             val volunteerId = getAuthenticatedVolunteerIdOrSendError() ?: return@post
                             requireVolunteerWithoutRolesOrSendError(volunteerId, RoleName.ORGANIZER)
 
-                            if(cardValidation.cardExist(receiveCreateCard.nfcCode)) {
+                            if (cardValidation.cardExist(receiveCreateCard.nfcCode)) {
                                 sendError(
                                     status = HttpStatusCode.Conflict,
                                     message = "This card already exist",
@@ -450,8 +378,10 @@ fun Application.configureRouting() {
                             }
 
                             call.respond(
-                                HttpStatusCode.Created, message = SuccessMessage(
-                                    message = "The cards was created with success", code = 201
+                                HttpStatusCode.Created,
+                                message = SuccessMessage(
+                                    message = "The cards was created with success",
+                                    code = 201
                                 )
                             )
                         }
@@ -460,66 +390,66 @@ fun Application.configureRouting() {
                     route("/stands") {
                         route("/{id}") {
                             get {
-                                // Return stand details.
+                                // TODO: return stand details.
                             }
 
                             delete {
-                                // Delete the stand.
+                                // TODO: delete the stand.
                             }
 
                             route("/volunteers") {
                                 post {
-                                    // Add a volunteer to the stand.
+                                    // TODO: add a volunteer to the stand.
                                 }
 
                                 delete("/{volunteerId}") {
-                                    // Remove a volunteer from the stand.
+                                    // TODO: remove a volunteer from the stand.
                                 }
                             }
 
                             route("/inventory") {
                                 get {
-                                    // List inventory for this stand.
+                                    // TODO: list inventory for this stand.
                                 }
 
                                 get("/{articleId}") {
-                                    // Get a specific inventory item by article.
+                                    // TODO: get a specific inventory item by article.
                                 }
 
                                 post {
-                                    // Add inventory item to the stand.
+                                    // TODO: add inventory item to the stand.
                                 }
 
                                 put {
-                                    // Set inventory quantity/price.
+                                    // TODO: set inventory quantity and price.
                                 }
 
                                 delete("/{articleId}") {
-                                    // Remove inventory item.
+                                    // TODO: remove inventory item.
                                 }
                             }
                         }
 
                         post {
-                            // Create a new stand.
+                            // TODO: create a new stand.
                         }
 
                         put {
-                            // Update stand data.
+                            // TODO: update stand data.
                         }
                     }
 
                     route("/volunteers") {
                         post {
-                            // Create a volunteer.
+                            // TODO: create a volunteer.
                         }
 
                         put {
-                            // Update a volunteer.
+                            // TODO: update a volunteer.
                         }
 
                         delete {
-                            // Delete a volunteer.
+                            // TODO: delete a volunteer.
                         }
                     }
                 }
@@ -529,24 +459,29 @@ fun Application.configureRouting() {
 }
 
 /**
- * Sends a structured JSON error response with the given [message], numeric [code], and HTTP [status].
+ * Sends a structured JSON error response.
  *
- * Wraps [ErrorMessage] so every error response has a consistent shape across all routes.
+ * @param message human-readable error message
+ * @param code application-specific error code
+ * @param status HTTP status to return
  */
-public suspend fun RoutingContext.sendError(message: String, code: Int, status: HttpStatusCode) {
+suspend fun RoutingContext.sendError(message: String, code: Int, status: HttpStatusCode) {
     call.respond(
-        status = status, message = ErrorMessage(
-            message = message, code = code
+        status = status,
+        message = ErrorMessage(
+            message = message,
+            code = code
         )
     )
 }
 
 /**
- * Reads the authenticated volunteer from the current JWT principal and returns the volunteer role.
+ * Extracts the authenticated volunteer id from the current JWT principal.
  *
- * @param volunteerRepository repository used to look up the volunteer role from the database
- * @return the volunteer role if it exists, or `null` if the request is unauthenticated or the role is missing
- *         (in which case a 401 response is sent)
+ * If the principal is missing or its subject cannot be parsed as an integer,
+ * a `404 Not Found` response is sent and `null` is returned.
+ *
+ * @return the authenticated volunteer id, or `null` if it cannot be resolved
  */
 private suspend fun RoutingContext.getAuthenticatedVolunteerIdOrSendError(): Int? {
     val volunteerId = call.principal<JWTPrincipal>()?.subject?.toIntOrNull()
@@ -563,6 +498,15 @@ private suspend fun RoutingContext.getAuthenticatedVolunteerIdOrSendError(): Int
     return volunteerId
 }
 
+/**
+ * Ensures the volunteer does not have any of the roles listed in [allowedRoles].
+ *
+ * If the volunteer has one of the forbidden roles, a `403 Forbidden` response is sent.
+ *
+ * @param volunteerId volunteer id to check
+ * @param allowedRoles roles that are not allowed to perform the action
+ * @return `true` if the request may continue, otherwise `false`
+ */
 private suspend fun RoutingContext.requireVolunteerWithoutRolesOrSendError(
     volunteerId: Int,
     vararg allowedRoles: RoleName
@@ -579,14 +523,24 @@ private suspend fun RoutingContext.requireVolunteerWithoutRolesOrSendError(
     return true
 }
 
+/**
+ * Resolves the current volunteer role from the JWT principal.
+ *
+ * If the role cannot be found, a `401 Unauthorized` response is sent.
+ *
+ * @param volunteerRepository repository used to read the volunteer role
+ * @return the volunteer role, or `null` if it cannot be resolved
+ */
 private suspend fun RoutingContext.getVolunteerRole(volunteerRepository: VolunteerRepository): RoleName? {
     val principal = call.principal<JWTPrincipal>() ?: return null
     val volunteerId = principal.payload.subject.toInt()
     val volunteerRole = volunteerRepository.getRole(volunteerId)
     if (volunteerRole == null) {
         call.respond(
-            status = HttpStatusCode.Unauthorized, message = ErrorMessage(
-                message = "Unable to find the volunteer role", code = 401
+            status = HttpStatusCode.Unauthorized,
+            message = ErrorMessage(
+                message = "Unable to find the volunteer role",
+                code = 401
             )
         )
         return null
@@ -595,11 +549,12 @@ private suspend fun RoutingContext.getVolunteerRole(volunteerRepository: Volunte
 }
 
 /**
- * Extension that dispatches [CardRepository.connect] to the correct overload based on
- * the runtime types of [card] and [user].
+ * Dispatches [CardRepository.connect] to the correct overload based on runtime argument types.
  *
- * Both identifiers can be either an [Int] (internal database ID) or a [String] (NFC code / username),
- * giving four possible combinations. Any other type combination is treated as a programming error.
+ * Both identifiers may be either an [Int] or a [String], which results in four valid combinations.
+ *
+ * @param card card identifier, either id or NFC code
+ * @param user user identifier, either id or username
  */
 private fun CardRepository.connect(card: Any, user: Any) = when {
     card is Int && user is Int -> connect(card, user)
