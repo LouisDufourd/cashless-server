@@ -4,7 +4,6 @@ ktor:
       - fr.plaglefleau.ApplicationKt.module
   deployment:
     port: 8080
-
 database:
   host: ${DB_HOST:localhost}
   port: ${DB_PORT:5432}

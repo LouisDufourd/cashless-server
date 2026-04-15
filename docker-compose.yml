@@ -18,6 +18,25 @@ services:
       timeout: 3s
       retries: 10
 
+  test-db:
+    image: postgres:16
+    container_name: cashless-test-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: cashless-test
+      POSTGRES_USER: cashless_user-test
+      POSTGRES_PASSWORD: cashless_password-test
+    ports:
+      - "4062:5432"
+    volumes:
+      - cashless_db_data:/var/lib/postgresql/data
+      - ./docker/db:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U cashless_user -d cashless" ]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
   app:
     build:
       context: .

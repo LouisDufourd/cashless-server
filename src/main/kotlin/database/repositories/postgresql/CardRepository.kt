@@ -34,7 +34,11 @@ class CardRepository: ICardRepository {
      * or null if no card with that NFC code exists.
      */
     override fun getBalance(nfc: String): Double? = dbQuery {
-        CardEntity.find(CardsTable.nfc eq nfc).firstOrNull()?.balance?.toDouble()
+        CardEntity
+            .find(CardsTable.nfc eq nfc)
+            .firstOrNull()
+            ?.balance
+            ?.toDouble()
     }
 
     /**

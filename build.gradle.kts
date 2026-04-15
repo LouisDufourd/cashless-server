@@ -18,6 +18,10 @@ kotlin {
     jvmToolchain(21)
 }
 
+repositories {
+    mavenCentral()
+}
+
 dependencies {
     implementation("io.ktor:ktor-server-core")
     implementation("io.ktor:ktor-server-auth")
@@ -37,20 +41,88 @@ dependencies {
 
     testImplementation(kotlin("test"))
     testImplementation("io.mockk:mockk:1.13.13")
-    testImplementation("org.jetbrains.kotlin:kotlin-test-junit5")
-    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+    testImplementation("org.jetbrains.kotlin:kotlin-test-junit5:2.3.20")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher:1.11.4")
+}
+val testDbServiceName = "test-db"
+val testSqlFile = "docker/db/testDataGeneration.sql"
+
+tasks.register<Exec>("seedTestDb") {
+    group = "verification"
+    description = "Loads test data into the Docker test database"
+
+    dependsOn("waitForTestDb")
+
+    commandLine(
+        "docker", "compose", "exec", "-T",
+        testDbServiceName,
+        "psql",
+        "-U", "cashless_user-test",
+        "-d", "cashless-test",
+        "-f", "/docker-entrypoint-initdb.d/testDataGeneration.sql"
+    )
+}
+
+tasks.register<Exec>("startTestDb") {
+    group = "verification"
+    description = "Starts the Docker test database"
+
+    commandLine("docker", "compose", "up", "-d", testDbServiceName)
+}
+
+tasks.register("waitForTestDb") {
+    group = "verification"
+    description = "Waits until the Docker test database is healthy"
+
+    dependsOn("startTestDb")
+
+    doLast {
+        val maxAttempts = 30
+        var attempt = 0
+        var healthy = false
+
+        while (attempt < maxAttempts && !healthy) {
+            attempt++
+
+            val process = ProcessBuilder(
+                "docker", "compose", "ps", "--format", "json", testDbServiceName
+            ).redirectErrorStream(true).start()
+
+            val output = process.inputStream.bufferedReader().readText()
+            process.waitFor()
+
+            healthy = output.lowercase().contains("healthy")
+
+            if (!healthy) {
+                Thread.sleep(2000)
+            }
+        }
+
+        if (!healthy) {
+            throw GradleException("Test database did not become healthy in time.")
+        }
+    }
+}
+
+tasks.register<Exec>("stopTestDb") {
+    group = "verification"
+    description = "Stops the Docker test database"
+
+    commandLine("docker", "compose", "stop", testDbServiceName)
 }
 
 tasks.test {
-    useJUnitPlatform()
-}
-
-tasks.register<Test>("validationTest") {
-    group = "verification"
-    description = "Runs validation tests"
+    dependsOn("seedTestDb")
+    finalizedBy("stopTestDb")
 
     useJUnitPlatform()
 
     testClassesDirs = sourceSets["test"].output.classesDirs
     classpath = sourceSets["test"].runtimeClasspath
+
+    systemProperty("DB_HOST", "localhost")
+    systemProperty("DB_PORT", "4062")
+    systemProperty("DB_NAME", "cashless-test")
+    systemProperty("DB_USER", "cashless_user-test")
+    systemProperty("DB_PASSWORD", "cashless_password-test")
 }

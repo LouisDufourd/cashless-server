@@ -1,6 +1,7 @@
 package fr.plaglefleau
 
 import fr.plaglefleau.database.DatabaseFactory
+import fr.plaglefleau.database.DatabaseFactory.dataSource
 import io.ktor.server.application.*
 
 fun main(args: Array<String>) {
@@ -10,7 +11,17 @@ fun main(args: Array<String>) {
 
 fun Application.module() {
     // Initialize database configuration before any route or security code tries to use it.
-    DatabaseFactory.init(environment)
+    // Read database connection settings from the application configuration.
+    // This keeps credentials and host information outside the source code.
+    val config = Config.databaseConfig(environment)
+
+    DatabaseFactory.init(
+        config.database,
+        config.user,
+        config.password,
+        serverNames = arrayOf(config.host),
+        portNumber = intArrayOf(config.port)
+    )
 
     // Register all major application modules in the correct startup order.
     configureSecurity()
