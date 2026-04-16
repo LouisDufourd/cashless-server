@@ -1,15 +1,11 @@
 -- =========================================================
 -- CLEAN START
 -- =========================================================
-truncate transaction_logs cascade;
-truncate cards cascade;
-truncate inventory cascade;
-truncate token_session cascade;
-truncate volunteers cascade;
-truncate users cascade;
-truncate articles cascade;
-truncate civilities cascade;
-truncate stands cascade;
+truncate cards CASCADE;
+truncate users CASCADE;
+truncate articles CASCADE;
+truncate civilities CASCADE;
+truncate stands CASCADE;
 
 -- =========================================================
 -- STANDS

@@ -1,4 +1,13 @@
 -- =========================================================
+-- CLEAN START
+-- =========================================================
+truncate cards CASCADE;
+truncate users CASCADE;
+truncate articles CASCADE;
+truncate civilities CASCADE;
+truncate stands CASCADE;
+
+-- =========================================================
 -- DATA GENERATION SECTION (SEED / TEST DATA)
 -- =========================================================
 
