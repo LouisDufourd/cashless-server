@@ -52,7 +52,7 @@ class CardValidationTest : ValidationTestBase() {
     fun cardExist() {
         every { cardRepository.getCard(ValidationFixtures.CARD_ID) } returns CardDTO(
             id = ValidationFixtures.CARD_ID,
-            nfcCode = ValidationFixtures.CARD_NFC,
+            nfc = ValidationFixtures.CARD_NFC,
             pin = 1234,
             balance = ValidationFixtures.CARD_BALANCE,
             userId = null
@@ -60,7 +60,7 @@ class CardValidationTest : ValidationTestBase() {
 
         every { cardRepository.getCard(ValidationFixtures.CARD_NFC) } returns CardDTO(
             id = ValidationFixtures.CARD_ID,
-            nfcCode = ValidationFixtures.CARD_NFC,
+            nfc = ValidationFixtures.CARD_NFC,
             pin = 1234,
             balance = ValidationFixtures.CARD_BALANCE,
             userId = null

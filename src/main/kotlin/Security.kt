@@ -4,6 +4,7 @@ import com.auth0.jwt.JWT
 import com.auth0.jwt.algorithms.Algorithm
 import fr.plaglefleau.Config.jwtConfig
 import fr.plaglefleau.database.repositories.postgresql.TokenSessionRepository
+import fr.plaglefleau.database.tables.RoleName
 import io.ktor.server.application.*
 import io.ktor.server.auth.*
 import io.ktor.server.auth.jwt.*
@@ -28,12 +29,12 @@ fun Application.configureSecurity() {
 
     // Install Ktor's authentication plugin.
     install(Authentication) {
-        jwt("api") {
+        jwt("ORGANIZER") {
             // Verifier for access tokens.
             // It checks the JWT signature using the access-token secret.
             verifier(
                 JWT.require(Algorithm.HMAC256(jwtConfig(env).secret))
-                    .withAudience("CashlessApi")
+                    .withAudience("CashlessApiORGANIZER")
                     .build()
             )
 
@@ -41,7 +42,76 @@ fun Application.configureSecurity() {
                 // Reject tokens that do not belong to this application or are already expired.
                 // If valid, wrap the token payload in a JWTPrincipal so route handlers can read claims.
                 if (
-                    credential.payload.audience.contains("CashlessApi")
+                    credential.payload.audience.contains("CashlessApiORGANIZER")
+                    && credential.payload.expiresAt.time > System.currentTimeMillis()
+                ) {
+                    JWTPrincipal(credential.payload)
+                } else {
+                    null
+                }
+            }
+        }
+
+        jwt("MANAGER") {
+            // Verifier for access tokens.
+            // It checks the JWT signature using the access-token secret.
+            verifier(
+                JWT.require(Algorithm.HMAC256(jwtConfig(env).secret))
+                    .withAudience("CashlessApiMANAGER")
+                    .build()
+            )
+
+            validate { credential ->
+                // Reject tokens that do not belong to this application or are already expired.
+                // If valid, wrap the token payload in a JWTPrincipal so route handlers can read claims.
+                if (
+                    credential.payload.audience.contains("CashlessApiMANAGER")
+                    && credential.payload.expiresAt.time > System.currentTimeMillis()
+                ) {
+                    JWTPrincipal(credential.payload)
+                } else {
+                    null
+                }
+            }
+        }
+
+        jwt("SELLER") {
+            // Verifier for access tokens.
+            // It checks the JWT signature using the access-token secret.
+            verifier(
+                JWT.require(Algorithm.HMAC256(jwtConfig(env).secret))
+                    .withAudience("CashlessApiSELLER")
+                    .build()
+            )
+
+            validate { credential ->
+                // Reject tokens that do not belong to this application or are already expired.
+                // If valid, wrap the token payload in a JWTPrincipal so route handlers can read claims.
+                if (
+                    credential.payload.audience.contains("CashlessApiSELLER")
+                    && credential.payload.expiresAt.time > System.currentTimeMillis()
+                ) {
+                    JWTPrincipal(credential.payload)
+                } else {
+                    null
+                }
+            }
+        }
+
+        jwt("RECHARGE") {
+            // Verifier for access tokens.
+            // It checks the JWT signature using the access-token secret.
+            verifier(
+                JWT.require(Algorithm.HMAC256(jwtConfig(env).secret))
+                    .withAudience("CashlessApiRECHARGE")
+                    .build()
+            )
+
+            validate { credential ->
+                // Reject tokens that do not belong to this application or are already expired.
+                // If valid, wrap the token payload in a JWTPrincipal so route handlers can read claims.
+                if (
+                    credential.payload.audience.contains("CashlessApiRECHARGE")
                     && credential.payload.expiresAt.time > System.currentTimeMillis()
                 ) {
                     JWTPrincipal(credential.payload)
@@ -96,16 +166,17 @@ fun Application.configureSecurity() {
  * They contain:
  * - The application audience
  * - The volunteer ID as a subject
+ * - The volunteer role
  * - A unique JWT ID
  * - An expiration date
  * - A claim identifying the token type
  */
-fun Application.generateToken(volunteerId: String, tokenUUID: String, expirationDate: Long): String {
+fun Application.generateToken(volunteerId: String, role: RoleName, tokenUUID: String, expirationDate: Long): String {
     val jwtConfig = jwtConfig(environment)
 
     return JWT.create()
         // Identify which application this token belongs to.
-        .withAudience("CashlessApi")
+        .withAudience("CashlessApi$role")
         // Store the volunteer ID inside the token.
         .withSubject(volunteerId)
         // Set token expiration time.

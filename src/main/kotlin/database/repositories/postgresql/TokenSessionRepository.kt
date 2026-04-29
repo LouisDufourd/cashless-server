@@ -4,6 +4,7 @@ import fr.plaglefleau.database.DatabaseFactory.dbQuery
 import fr.plaglefleau.database.dto.TokenSessionDTO
 import fr.plaglefleau.database.entities.TokenSessionEntity
 import fr.plaglefleau.database.entities.VolunteerEntity
+import fr.plaglefleau.database.exceptions.NotFoundException
 import fr.plaglefleau.database.repositories.ITokenSessionRepository
 import fr.plaglefleau.database.tables.TokenSessionTable
 import org.jetbrains.exposed.v1.core.eq
@@ -11,7 +12,7 @@ import org.jetbrains.exposed.v1.jdbc.update
 import kotlin.time.Instant
 
 class TokenSessionRepository: ITokenSessionRepository {
-    override fun findActiveTokenSession(refreshJti: String) : TokenSessionDTO? = dbQuery {
+    override fun findActiveTokenSession(refreshJti: String) : TokenSessionDTO = dbQuery {
         // Find a refresh-session row by its JWT identifier.
         TokenSessionEntity.find {
             TokenSessionTable.refreshJti eq refreshJti
@@ -24,7 +25,7 @@ class TokenSessionRepository: ITokenSessionRepository {
                 createdAt = tokenSessionEntity.createdAt,
                 expireAt = tokenSessionEntity.expireAt
             )
-        }.firstOrNull()
+        }.firstOrNull() ?: throw NotFoundException("Refresh token not found")
     }
 
     override fun revokeTokenSession(refreshJti: String) = dbQuery {

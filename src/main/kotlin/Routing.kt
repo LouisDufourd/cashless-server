@@ -1,5 +1,6 @@
 package fr.plaglefleau
 
+import fr.plaglefleau.api.ExceptionHandler
 import fr.plaglefleau.api.receive.*
 import fr.plaglefleau.api.response.ErrorMessage
 import fr.plaglefleau.api.response.SuccessMessage
@@ -53,7 +54,7 @@ fun Application.configureRouting() {
             version = "4.15.5"
         }
 
-        authenticate("api") {
+        authenticate("ORGANIZER", "SELLER", "MANAGER", "RECHARGE") {
             get("/protected") {
                 val principal = call.principal<JWTPrincipal>()
                 if (principal == null) {
@@ -75,17 +76,15 @@ fun Application.configureRouting() {
                 route("/auth") {
                     post("/login") {
                         val login = call.receive<ReceiveVolunteerLogin>()
-                        val id: Int? = volunteerRepository.login(login.username, login.password)
-                        val config = Config.jwtConfig(environment)
-
-                        if (id == null) {
-                            sendError(
-                                message = "Invalid credentials",
-                                code = 401,
-                                status = HttpStatusCode.Unauthorized
-                            )
+                        val id: Int = try {
+                            volunteerRepository.login(login.username, login.password)
+                        } catch (e: Exception) {
+                            val handled = ExceptionHandler.handleException(e)
+                            sendError(handled.message, handled.code, handled.status)
                             return@post
                         }
+
+                        val config = Config.jwtConfig(environment)
 
                         val refreshJti = UUID.randomUUID().toString()
                         val refreshExpiration = System.currentTimeMillis() + config.refreshExpiration * 1000
@@ -98,6 +97,7 @@ fun Application.configureRouting() {
 
                         val accessToken = generateToken(
                             volunteerId = id.toString(),
+                            role = volunteerRepository.getRole(id),
                             tokenUUID = UUID.randomUUID().toString(),
                             expirationDate = System.currentTimeMillis() + config.expiration * 1000
                         )
@@ -140,6 +140,7 @@ fun Application.configureRouting() {
 
                             val newAccessToken = generateToken(
                                 volunteerId = id,
+                                role = volunteerRepository.getRole(id.toInt()),
                                 tokenUUID = UUID.randomUUID().toString(),
                                 expirationDate = System.currentTimeMillis() + Config.jwtConfig(environment).expiration * 1000
                             )
@@ -158,33 +159,43 @@ fun Application.configureRouting() {
                     }
                 }
 
-                authenticate("api") {
-                    route("/cards") {
-                        route("/{identifier}") {
+                route("/cards") {
+                    route("/{identifier}") {
+                        authenticate("ORGANIZER", "SELLER", "MANAGER", "RECHARGE") {
                             get("/history") {
                                 val page = call.parameters["page"]?.toIntOrNull()
-                                val size = call.parameters["size"]?.toIntOrNull()
+                                val pageSize = call.parameters["size"]?.toIntOrNull()
                                 val identifierValue = call.parameters["identifier"]!!
-
-                                getVolunteerRole(volunteerRepository) ?: return@get
 
                                 val identifier: Any = identifierValue.toIntOrNull() ?: identifierValue
 
-                                val transactionLog = when (identifier) {
-                                    is Int -> transactionLogRepository.getCardTransactionLog(
-                                        identifier,
-                                        page,
-                                        pageSize = size
-                                    )
-                                    is String -> transactionLogRepository.getCardTransactionLog(
-                                        identifier,
-                                        page,
-                                        pageSize = size
-                                    )
-                                    else -> {
-                                        sendError("Unexpected identifier types: ${identifier::class}", 400, HttpStatusCode.BadRequest)
-                                        return@get
+                                val transactionLog = try {
+                                    when (identifier) {
+                                        is Int -> transactionLogRepository.getCardTransactionLog(
+                                            volunteerIdentifier = identifier,
+                                            page ?: 1,
+                                            pageSize ?: 10
+                                        )
+
+                                        is String -> transactionLogRepository.getCardTransactionLog(
+                                            volunteerIdentifier = identifier,
+                                            page ?: 1,
+                                            pageSize ?: 10
+                                        )
+
+                                        else -> {
+                                            sendError(
+                                                "Unexpected identifier types: ${identifier::class}",
+                                                400,
+                                                HttpStatusCode.BadRequest
+                                            )
+                                            return@get
+                                        }
                                     }
+                                } catch (e: Exception) {
+                                    val handled = ExceptionHandler.handleException(e)
+                                    sendError(handled.message, handled.code, handled.status)
+                                    return@get
                                 }
 
                                 call.respond(
@@ -193,7 +204,7 @@ fun Application.configureRouting() {
                                         "transactions" to transactionLog,
                                         "pagination" to mapOf(
                                             "page" to (page ?: 1),
-                                            "size" to (size ?: 10)
+                                            "size" to (pageSize ?: 10)
                                         )
                                     )
                                 )
@@ -202,17 +213,25 @@ fun Application.configureRouting() {
                             get("/balance") {
                                 val identifierValue = call.parameters["identifier"]!!
 
-                                getVolunteerRole(volunteerRepository) ?: return@get
-
                                 val identifier: Any = identifierValue.toIntOrNull() ?: identifierValue
 
-                                val balance = when (identifier) {
-                                    is Int -> cardRepository.getBalance(identifier)
-                                    is String -> cardRepository.getBalance(identifier)
-                                    else -> {
-                                        sendError("Unexpected identifier types: ${identifier::class}", 400, HttpStatusCode.BadRequest)
-                                        return@get
+                                val balance = try {
+                                    when (identifier) {
+                                        is Int -> cardRepository.getBalance(identifier)
+                                        is String -> cardRepository.getBalance(identifier)
+                                        else -> {
+                                            sendError(
+                                                "Unexpected identifier types: ${identifier::class}",
+                                                400,
+                                                HttpStatusCode.BadRequest
+                                            )
+                                            return@get
+                                        }
                                     }
+                                } catch (e: Exception) {
+                                    val handled = ExceptionHandler.handleException(e)
+                                    sendError(handled.message, handled.code, handled.status)
+                                    return@get
                                 }
 
                                 call.respond(
@@ -220,57 +239,12 @@ fun Application.configureRouting() {
                                     message = mapOf("balance" to "$balance€")
                                 )
                             }
+                        }
 
-                            // Temporary endpoint for connecting a card to a user.
-                            put("/connect") {
-                                val receiveConnectCardUser = call.receive<ReceiveConnectCardUser>()
-                                val nfcCode = call.parameters["identifier"]!!
-                                val extractId = nfcCode.toIntOrNull()
-
-                                getVolunteerRole(volunteerRepository) ?: return@put
-
-                                if (receiveConnectCardUser.userId == null && receiveConnectCardUser.username == null) {
-                                    sendError(
-                                        message = "You need to specify either the user id or the username",
-                                        code = 400,
-                                        status = HttpStatusCode.BadRequest
-                                    )
-                                    return@put
-                                }
-
-                                val card: Any = extractId ?: nfcCode
-                                val user: Any = receiveConnectCardUser.userId ?: receiveConnectCardUser.username!!
-
-                                /**
-                                 * Validates that the target card and user exist and that the card is not already linked.
-                                 *
-                                 * These checks are still marked as TODO because they depend on the repository
-                                 * methods that will enforce the final business rules.
-                                 */
-                                cardRepository.connect(card, user)
-
-                                call.respond(
-                                    status = HttpStatusCode.OK,
-                                    message = SuccessMessage(
-                                        message = "The user `$user` has been successfully added to the card `$card`",
-                                        code = 200
-                                    )
-                                )
-                            }
-
+                        authenticate("SELLER", "MANAGER") {
                             put("/debit") {
                                 val debitRequest = call.receive<ReceiveDebitCard>()
-                                val identifierValue = call.parameters["identifier"] ?: run {
-                                    sendError(
-                                        message = "Missing card identifier",
-                                        code = 400,
-                                        status = HttpStatusCode.BadRequest
-                                    )
-                                    return@put
-                                }
-
-                                val volunteerId = getAuthenticatedVolunteerIdOrSendError() ?: return@put
-                                requireVolunteerWithRolesOrSendError(volunteerId, RoleName.SELLER, RoleName.MANAGER)
+                                val identifierValue = call.parameters["identifier"]!!
 
                                 val identifier: Any = identifierValue.toIntOrNull() ?: identifierValue
 
@@ -283,36 +257,30 @@ fun Application.configureRouting() {
                                     return@put
                                 }
 
-                                if (cardValidation.cardExist(identifier)) {
-                                    sendError(
-                                        message = "There is no card with the identifier `$identifier`.",
-                                        code = 404,
-                                        status = HttpStatusCode.NotFound
-                                    )
+                                try {
+                                    when (identifier) {
+                                        is Int -> cardRepository.debit(
+                                            identifier,
+                                            debitRequest.amount,
+                                            debitRequest.standName
+                                        )
+
+                                        is String -> cardRepository.debit(
+                                            identifier,
+                                            debitRequest.amount,
+                                            debitRequest.standName
+                                        )
+                                    }
+                                } catch (e: Exception) {
+                                    /**
+                                     * TODO:
+                                     *  1. Verify that the card exists
+                                     *  2. Verify that the stand exists
+                                     *  3. Verify that the card can be debited
+                                     */
+                                    val handled = ExceptionHandler.handleException(e)
+                                    sendError(handled.message, handled.code, handled.status)
                                     return@put
-                                }
-
-                                if (cardValidation.canDebitCard(identifier, debitRequest.amount)) {
-                                    sendError(
-                                        message = "The card doesn't have enough money to be debited",
-                                        code = 409,
-                                        status = HttpStatusCode.Conflict
-                                    )
-                                    return@put
-                                }
-
-                                when (identifier) {
-                                    is Int -> cardRepository.debit(
-                                        identifier,
-                                        debitRequest.amount,
-                                        debitRequest.standName
-                                    )
-
-                                    is String -> cardRepository.debit(
-                                        identifier,
-                                        debitRequest.amount,
-                                        debitRequest.standName
-                                    )
                                 }
 
                                 call.respond(
@@ -323,13 +291,12 @@ fun Application.configureRouting() {
                                     )
                                 )
                             }
+                        }
 
+                        authenticate("RECHARGE") {
                             put("/credit") {
                                 val receiveCardCredit = call.receive<ReceiveCreditCard>()
                                 val identifierParam = call.parameters["identifier"]!!
-
-                                val volunteerId = getAuthenticatedVolunteerIdOrSendError() ?: return@put
-                                requireVolunteerWithRolesOrSendError(volunteerId, RoleName.RECHARGE)
 
                                 val identifier: Any = identifierParam.toIntOrNull() ?: identifierParam
 
@@ -364,15 +331,20 @@ fun Application.configureRouting() {
                                     )
                                 )
                             }
+                        }
 
+                        authenticate("ORGANIZER") {
                             put {
                                 val receiveUpdateCard = call.receive<ReceiveUpdateCard>()
                                 val identifierParam = call.parameters["identifier"]!!
 
-                                val volunteerId = getAuthenticatedVolunteerIdOrSendError() ?: return@put
-                                requireVolunteerWithRolesOrSendError(volunteerId, RoleName.ORGANIZER)
-
                                 val identifier: Any = identifierParam.toIntOrNull() ?: identifierParam
+
+                                /**
+                                 * TODO:
+                                 *  - Verify that the card exists
+                                 *  - Verify the amount is valid
+                                 */
 
                                 when (identifier) {
                                     is Int -> cardRepository.update(
@@ -388,12 +360,6 @@ fun Application.configureRouting() {
                                     )
                                 }
 
-                                /**
-                                 * TODO:
-                                 *  - Verify that the card exists
-                                 *  - Verify the amount is valid
-                                 */
-
                                 call.respond(
                                     status = HttpStatusCode.OK,
                                     message = SuccessMessage(
@@ -403,25 +369,28 @@ fun Application.configureRouting() {
                                 )
                             }
                         }
+                    }
 
+                    authenticate("ORGANIZER") {
                         post {
                             val receiveCreateCard = call.receive<ReceiveCreateCard>()
 
-                            cardRepository.create(receiveCreateCard.pin, receiveCreateCard.nfcCode)
+                            /**
+                             * TODO:
+                             *  - Verify the NFC code is valid
+                             *  - Verify the pin is valid
+                             */
 
-                            val volunteerId = getAuthenticatedVolunteerIdOrSendError() ?: return@post
-                            requireVolunteerWithRolesOrSendError(volunteerId, RoleName.ORGANIZER)
-
-                            if (cardValidation.cardExist(receiveCreateCard.nfcCode)) {
-                                sendError(
-                                    status = HttpStatusCode.Conflict,
-                                    message = "This card already exist",
-                                    code = 409
-                                )
+                            try {
+                                cardRepository.create(receiveCreateCard.pin, receiveCreateCard.nfcCode)
+                            } catch (e: Exception) {
+                                val handled = ExceptionHandler.handleException(e)
+                                sendError(handled.message, handled.code, handled.status)
+                                return@post
                             }
 
                             call.respond(
-                                HttpStatusCode.Created,
+                                status = HttpStatusCode.Created,
                                 message = SuccessMessage(
                                     message = "The cards was created with success",
                                     code = 201
@@ -429,71 +398,90 @@ fun Application.configureRouting() {
                             )
                         }
                     }
+                }
 
-                    route("/stands") {
-                        route("/{id}") {
+                route("/stands") {
+                    route("/{id}") {
+                        authenticate("ORGANIZER", "SELLER", "MANAGER", "RECHARGE") {
                             get {
                                 // TODO: return stand details.
                             }
+                        }
 
+                        authenticate("ORGANIZER") {
                             delete {
                                 // TODO: delete the stand.
                             }
+                        }
 
+                        authenticate("ORGANIZER", "MANAGER") {
                             route("/volunteers") {
                                 post {
                                     // TODO: add a volunteer to the stand.
                                 }
-
-                                delete("/{volunteerId}") {
-                                    // TODO: remove a volunteer from the stand.
-                                }
-                            }
-
-                            route("/inventory") {
-                                get {
-                                    // TODO: list inventory for this stand.
-                                }
-
-                                get("/{articleId}") {
-                                    // TODO: get a specific inventory item by article.
-                                }
-
-                                post {
-                                    // TODO: add inventory item to the stand.
-                                }
-
-                                put {
-                                    // TODO: set inventory quantity and price.
-                                }
-
-                                delete("/{articleId}") {
-                                    // TODO: remove inventory item.
-                                }
                             }
                         }
 
-                        post {
-                            // TODO: create a new stand.
-                        }
-
-                        put {
-                            // TODO: update stand data.
+                        authenticate("MANAGER") {
+                            delete("/{volunteerId}") {
+                                // TODO: remove a volunteer from the stand.
+                            }
                         }
                     }
 
-                    route("/volunteers") {
-                        post {
-                            // TODO: create a volunteer.
-                        }
+                    route("/inventory") {
+                        authenticate("MANAGER", "SELLER") {
+                            get {
+                                // TODO: list inventory for this stand.
+                            }
 
-                        put {
-                            // TODO: update a volunteer.
-                        }
+                            get("/{articleId}") {
+                                // TODO: get a specific inventory item by article.
+                            }
 
-                        delete {
-                            // TODO: delete a volunteer.
+                            post {
+                                // TODO: add inventory item to the stand.
+                            }
+
+                            put {
+                                // TODO: set inventory quantity and price.
+                            }
                         }
+                        authenticate("MANAGER") {
+                            delete("/{articleId}") {
+                                // TODO: remove inventory item.
+                            }
+                        }
+                    }
+                }
+
+                authenticate("ORGANIZER") {
+                    post {
+                        // TODO: create a new stand.
+                    }
+                }
+
+                authenticate("MANAGER") {
+                    put {
+                        // TODO: update stand data.
+                    }
+                }
+            }
+
+            route("/volunteers") {
+                authenticate("ORGANIZER", "MANAGER") {
+                    post {
+                        // TODO: create a volunteer.
+                    }
+                }
+
+                authenticate("ORGANIZER") {
+                    put {
+                        // TODO: update a volunteer.
+                    }
+
+                    delete {
+                        // TODO: delete a volunteer.
                     }
                 }
             }
@@ -542,31 +530,6 @@ private suspend fun RoutingContext.getAuthenticatedVolunteerIdOrSendError(): Int
 }
 
 /**
- * Ensures the volunteer has one of the roles listed in [allowedRoles].
- *
- * If the volunteer does not have one of the allowed roles, a `403 Forbidden` response is sent.
- *
- * @param volunteerId volunteer id to check
- * @param allowedRoles roles that are not allowed to perform the action
- * @return `true` if the request may continue, otherwise `false`
- */
-private suspend fun RoutingContext.requireVolunteerWithRolesOrSendError(
-    volunteerId: Int,
-    vararg allowedRoles: RoleName
-): Boolean {
-    if (!VolunteerValidation(VolunteerRepository()).volunteerHasRole(volunteerId, *allowedRoles)) {
-        sendError(
-            status = HttpStatusCode.Forbidden,
-            message = "You are not allowed to perform this action",
-            code = 403
-        )
-        return false
-    }
-
-    return true
-}
-
-/**
  * Resolves the current volunteer role from the JWT principal.
  *
  * If the role cannot be found, a `401 Unauthorized` response is sent.
@@ -575,20 +538,16 @@ private suspend fun RoutingContext.requireVolunteerWithRolesOrSendError(
  * @return the volunteer role, or `null` if it cannot be resolved
  */
 private suspend fun RoutingContext.getVolunteerRole(volunteerRepository: VolunteerRepository): RoleName? {
-    val principal = call.principal<JWTPrincipal>() ?: return null
-    val volunteerId = principal.payload.subject.toInt()
-    val volunteerRole = volunteerRepository.getRole(volunteerId)
-    if (volunteerRole == null) {
-        call.respond(
-            status = HttpStatusCode.Unauthorized,
-            message = ErrorMessage(
-                message = "Unable to find the volunteer role",
-                code = 401
-            )
-        )
+    try {
+        val principal = call.principal<JWTPrincipal>() ?: return null
+        val volunteerId = principal.payload.subject.toInt()
+        val volunteerRole = volunteerRepository.getRole(volunteerId)
+        return volunteerRole
+    } catch (e: Exception) {
+        val handled = ExceptionHandler.handleException(e)
+        sendError(handled.message, handled.code, handled.status)
         return null
     }
-    return volunteerRole
 }
 
 /**
