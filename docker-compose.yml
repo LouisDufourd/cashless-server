@@ -29,7 +29,7 @@ services:
     ports:
       - "4062:5432"
     volumes:
-      - cashless_db_data:/var/lib/postgresql/data
+      - cashless_test_db_data:/var/lib/postgresql/data
       - ./docker/db:/docker-entrypoint-initdb.d
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U cashless_user -d cashless" ]
@@ -61,3 +61,4 @@ services:
 
 volumes:
   cashless_db_data:
+  cashless_test_db_data:

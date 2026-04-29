@@ -38,10 +38,15 @@ dependencies {
     implementation("org.jetbrains.exposed:exposed-jdbc:1.1.1")
     implementation("org.jetbrains.exposed:exposed-kotlin-datetime:1.1.1")
     implementation("org.postgresql:postgresql:42.7.10")
+    implementation("io.ktor:ktor-server-openapi:3.4.1")
+    implementation("io.ktor:ktor-server-routing-openapi:3.4.1")
+    implementation("io.ktor:ktor-server-swagger:3.4.1")
+    implementation("io.ktor:ktor-server-cors:3.4.1")
 
     testImplementation(kotlin("test"))
     testImplementation("io.mockk:mockk:1.13.13")
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit5:2.3.20")
+    testImplementation("io.ktor:ktor-server-test-host-jvm:3.4.1")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher:1.11.4")
 }
 val testDbServiceName = "test-db"
@@ -49,17 +54,16 @@ val testSqlFile = "docker/db/testDataGeneration.sql"
 
 tasks.register<Exec>("seedTestDb") {
     group = "verification"
-    description = "Loads test data into the Docker test database"
+    description = "Loads test schema and test data into the Docker test database"
 
     dependsOn("waitForTestDb")
 
     commandLine(
         "docker", "compose", "exec", "-T",
         testDbServiceName,
-        "psql",
-        "-U", "cashless_user-test",
-        "-d", "cashless-test",
-        "-f", "/docker-entrypoint-initdb.d/testDataGeneration.sql"
+        "sh", "-c",
+        "psql -U cashless_user-test -d cashless-test -f /docker-entrypoint-initdb.d/init.sql && " +
+            "psql -U cashless_user-test -d cashless-test -f /docker-entrypoint-initdb.d/testDataGeneration.sql"
     )
 }
 

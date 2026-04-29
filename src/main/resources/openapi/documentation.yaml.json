@@ -1,0 +1,960 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "My API",
+    "version": "1.0"
+  },
+  "paths": {
+    "/": {
+      "get": {
+        "summary": "Health check",
+        "description": "This endpoint is used to check the health status of the application. It returns a simple message indicating that the application is running and ready to receive requests.",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                },
+                "example": "Hello World!"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/protected": {
+      "get": {
+        "summary": "Used to verify that the API key is valid",
+        "responses": {
+          "200": {
+            "description": "API key is valid",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                },
+                "example": "Token is valid for user 123"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "api": []
+          }
+        ]
+      }
+    },
+    "/api/v1/auth/login": {
+      "post": {
+        "summary": "The volunteer can login with their email and password and it will return two JWT token",
+        "description": "This endpoint is used for volunteer authentication. The request body should contain the volunteer's email and password. Upon successful authentication, the endpoint returns a JSON response containing two JWT tokens: an access token and a refresh token. The access token is used for subsequent API requests, while the refresh token can be used to obtain a new access token without re-entering credentials.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReceiveVolunteerLogin"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful login, returns access and refresh tokens",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoginResponse"
+                },
+                "example": {
+                  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c",
+                  "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorMessage"
+                },
+                "example": {
+                  "message": "Invalid credentials",
+                  "code": 401
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/refresh": {
+      "post": {
+        "summary": "Refresh the session",
+        "description": "This endpoint is used to refresh the access token using a valid refresh token. The refresh token is obtained during the initial login process and can be used to obtain a new access token without requiring the user to re-enter their credentials.",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoginResponse"
+                },
+                "example": {
+                  "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c",
+                  "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "refresh": []
+          }
+        ]
+      }
+    },
+    "/api/v1/cards/{identifier}/history": {
+      "get": {
+        "summary": "Retrieve transaction history for a card",
+        "description": "This endpoint retrieves the transaction history for a specific card identified by its identifier. The history includes details such as the date, time, type, and amount of transactions associated with the card.",
+        "parameters": [
+          {
+            "name": "identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "The unique identifier of the card can be a string or an integer"
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request - Invalid identifier type"
+          },
+          "200": {
+            "description": "OK - Transaction history retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "transactions": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/TransactionLog"
+                      }
+                    },
+                    "pagination": {
+                      "type": "object",
+                      "properties": {
+                        "page": {
+                          "type": "number"
+                        },
+                        "size": {
+                          "type": "number"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "api": []
+          }
+        ]
+      }
+    },
+    "/api/v1/cards/{identifier}/balance": {
+      "get": {
+        "summary": "Returns the balance of a card",
+        "description": "This endpoint retrieves the balance of a specific card identified by its identifier. The balance is the total amount of money available on the card.",
+        "parameters": [
+          {
+            "name": "identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request - Invalid identifier type",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorMessage"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK - Balance retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "balance": {
+                      "type": "string"
+                    }
+                  },
+                  "example": {
+                    "balance": "25.5€"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "api": []
+          }
+        ]
+      }
+    },
+    "/api/v1/cards/{identifier}/debit": {
+      "put": {
+        "summary": "Debit a card",
+        "description": "This endpoint debits a card identified by its identifier. The request body should contain the amount to be debited and the stand name where the card is located.",
+        "parameters": [
+          {
+            "name": "identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "description": "Debit card request body",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReceiveDebitCard"
+              },
+              "example": {
+                "amount": 100,
+                "standName": "Stand 1"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Debit card successfully processed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessMessage"
+                },
+                "example": {
+                  "message": "The user has been successfully charged",
+                  "code": 200
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden - The volunteer is not authorized to update the card",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorMessage"
+                },
+                "example": {
+                  "message": "You are not allowed to perform this action",
+                  "code": 403
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request - The amount is not a valid number",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorMessage"
+                },
+                "example": {
+                  "message": "The amount needs to be positive",
+                  "code": 400
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found - The card does not exist",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorMessage"
+                },
+                "example": {
+                  "message": "There is no card with the identifier `$identifier`.",
+                  "code": 404
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict - The card don't have enough money to be debited",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorMessage"
+                },
+                "example": {
+                  "message": "The card doesn't have enough money to be debited",
+                  "code": 409
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "api": []
+          }
+        ]
+      }
+    },
+    "/api/v1/cards/{identifier}/credit": {
+      "put": {
+        "summary": "Credit a card",
+        "description": "This endpoint credits a card identified by its identifier. The request body should contain the amount to be credited and the stand name where the card is located.",
+        "parameters": [
+          {
+            "name": "identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "description": "Credit card request body",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReceiveCreditCard"
+              },
+              "example": {
+                "amount": 100
+              }
+            }
+          }
+        },
+        "responses": {
+          "404": {
+            "description": "Not Found - The card does not exist",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorMessage"
+                },
+                "example": {
+                  "message": "There is no card with the identifier `$identifier`.",
+                  "code": 404
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden - The volunteer is not authorized to update the card",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorMessage"
+                },
+                "example": {
+                  "message": "You are not allowed to perform this action",
+                  "code": 403
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request - The amount is not a valid number",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorMessage"
+                },
+                "example": {
+                  "message": "The amount needs to be positive",
+                  "code": 400
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Credit card successfully processed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessMessage"
+                },
+                "example": {
+                  "message": "The user has been successfully charged",
+                  "code": 200
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "api": []
+          }
+        ]
+      }
+    },
+    "/api/v1/cards/{identifier}": {
+      "put": {
+        "summary": "Update the card",
+        "description": "This endpoint updates the card identified by its identifier. The request body should contain the new pin and amount to be updated.",
+        "parameters": [
+          {
+            "name": "identifier",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReceiveUpdateCard"
+              },
+              "example": {
+                "pin": 1234,
+                "amount": 100.0
+              }
+            }
+          }
+        },
+        "responses": {
+          "404": {
+            "description": "Not Found - The card does not exist",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorMessage"
+                },
+                "example": {
+                  "message": "There is no card with the identifier `$identifier`.",
+                  "code": 404
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden - The volunteer is not authorized to update the card",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorMessage"
+                },
+                "example": {
+                  "message": "You are not allowed to perform this action",
+                  "code": 403
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request - The amount is not a valid number",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorMessage"
+                },
+                "example": {
+                  "message": "The amount needs to be positive",
+                  "code": 400
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Card successfully updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessMessage"
+                },
+                "example": {
+                  "message": "The card has been successfully updated",
+                  "code": 200
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "api": []
+          }
+        ]
+      }
+    },
+    "/api/v1/cards": {
+      "post": {
+        "summary": "Create card",
+        "description": "This endpoint creates a new card. The request body should contain the card nfc, pin.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReceiveCreateCard",
+                "example": {
+                  "nfc": "",
+                  "pin": 1234
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "409": {
+            "description": "Conflict - The card already exists",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorMessage"
+                },
+                "example": {
+                  "message": "This card already exists",
+                  "code": 409
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden - The volunteer is not authorized to update the card",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorMessage"
+                },
+                "example": {
+                  "message": "You are not allowed to perform this action",
+                  "code": 403
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Card successfully created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessMessage"
+                },
+                "example": {
+                  "message": "The card was created with success",
+                  "code": 201
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "api": []
+          }
+        ]
+      }
+    },
+    "/api/v1/stands/{id}": {
+      "delete": {
+        "summary": "",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "api": []
+          }
+        ]
+      },
+      "get": {
+        "summary": "",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "api": []
+          }
+        ]
+      }
+    },
+    "/api/v1/stands/{id}/volunteers": {
+      "post": {
+        "summary": "",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "api": []
+          }
+        ]
+      }
+    },
+    "/api/v1/stands/{id}/volunteers/{volunteerId}": {
+      "delete": {
+        "summary": "",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "volunteerId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "api": []
+          }
+        ]
+      }
+    },
+    "/api/v1/stands/{id}/inventory": {
+      "put": {
+        "summary": "",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "api": []
+          }
+        ]
+      },
+      "post": {
+        "summary": "",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "api": []
+          }
+        ]
+      },
+      "get": {
+        "summary": "",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "api": []
+          }
+        ]
+      }
+    },
+    "/api/v1/stands/{id}/inventory/{articleId}": {
+      "delete": {
+        "summary": "",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "articleId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "api": []
+          }
+        ]
+      },
+      "get": {
+        "summary": "",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "articleId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "api": []
+          }
+        ]
+      }
+    },
+    "/api/v1/stands": {
+      "put": {
+        "summary": "",
+        "security": [
+          {
+            "api": []
+          }
+        ]
+      },
+      "post": {
+        "summary": "",
+        "security": [
+          {
+            "api": []
+          }
+        ]
+      }
+    },
+    "/api/v1/volunteers": {
+      "put": {
+        "summary": "",
+        "security": [
+          {
+            "api": []
+          }
+        ]
+      },
+      "post": {
+        "summary": "",
+        "security": [
+          {
+            "api": []
+          }
+        ]
+      },
+      "delete": {
+        "summary": "",
+        "security": [
+          {
+            "api": []
+          }
+        ]
+      }
+    }
+  },
+  "webhooks": {},
+  "components": {
+    "schemas": {
+      "LoginResponse": {
+        "type": "object",
+        "properties": {
+          "accessToken": {
+            "type": "string"
+          },
+          "refreshToken": {
+            "type": "string"
+          }
+        }
+      },
+      "ErrorMessage": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string"
+          },
+          "code": {
+            "type": "integer"
+          }
+        }
+      },
+      "SuccessMessage": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string"
+          },
+          "code": {
+            "type": "integer"
+          }
+        }
+      },
+      "TransactionLog": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "date": {
+            "type": "integer"
+          },
+          "amount": {
+            "type": "number"
+          },
+          "cardNFC": {
+            "type": "string"
+          },
+          "standName": {
+            "type": "string"
+          }
+        }
+      },
+      "ReceiveVolunteerLogin": {
+        "type": "object",
+        "properties": {
+          "username": {
+            "type": "string"
+          },
+          "password": {
+            "type": "string"
+          }
+        }
+      },
+      "ReceiveDebitCard": {
+        "type": "object",
+        "properties": {
+          "amount": {
+            "type": "number"
+          },
+          "standName": {
+            "type": "string"
+          }
+        }
+      },
+      "ReceiveUpdateCard": {
+        "type": "object",
+        "properties": {
+          "pin": {
+            "type": "integer",
+            "nullable": true
+          },
+          "amount": {
+            "type": "number",
+            "nullable": true
+          }
+        }
+      },
+      "ReceiveCreditCard": {
+        "type": "object",
+        "properties": {
+          "amount": {
+            "type": "number"
+          }
+        }
+      },
+      "ReceiveCreateCard": {
+        "type": "object",
+        "properties": {
+          "nfc": {
+            "type": "string"
+          },
+          "pin": {
+            "type": "integer"
+          }
+        }
+      }
+    },
+    "securitySchemes": {
+      "api": {
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "JWT Bearer Authentication",
+        "type": "http"
+      },
+      "refresh": {
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "JWT Bearer Authentication",
+        "type": "http"
+      }
+    }
+  }
+}

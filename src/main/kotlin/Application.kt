@@ -1,7 +1,6 @@
 package fr.plaglefleau
 
 import fr.plaglefleau.database.DatabaseFactory
-import fr.plaglefleau.database.DatabaseFactory.dataSource
 import io.ktor.server.application.*
 
 fun main(args: Array<String>) {
@@ -27,4 +26,5 @@ fun Application.module() {
     configureSecurity()
     configureSerialization()
     configureRouting()
+    configureCORS()
 }

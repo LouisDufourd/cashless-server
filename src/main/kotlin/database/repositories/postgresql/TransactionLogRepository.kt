@@ -12,7 +12,7 @@ import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.selectAll
 
 class TransactionLogRepository : ITransactionLogRepository {
-    override fun getCardTransactionLog(cardId: Int, page: Int?, pageSize: Int?): List<TransactionLogDTO> = dbQuery {
+    override fun getCardTransactionLog(id: Int, page: Int?, pageSize: Int?): List<TransactionLogDTO> = dbQuery {
         TransactionLogsTable
             .join(
                 otherTable = CardsTable,
@@ -27,7 +27,7 @@ class TransactionLogRepository : ITransactionLogRepository {
                 otherColumn = StandsTable.id
             )
             .selectAll()
-            .where { TransactionLogsTable.cardId eq cardId }
+            .where { TransactionLogsTable.cardId eq id }
             .limit(count = pageSize?.coerceAtLeast(minimumValue = 1) ?: 10)
             .offset(start = calculateOffset(page, pageSize))
             .orderBy(column = TransactionLogsTable.date, order = SortOrder.DESC)
