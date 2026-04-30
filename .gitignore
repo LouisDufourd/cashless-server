@@ -44,3 +44,4 @@ src/main/resources/application-dev.yaml
 
 # Local Docker overrides
 docker-compose.override.yml
+/.kotlin/
