@@ -4,6 +4,7 @@ import com.auth0.jwt.JWT
 import com.auth0.jwt.algorithms.Algorithm
 import fr.plaglefleau.Config.jwtConfig
 import fr.plaglefleau.database.repositories.postgresql.TokenSessionRepository
+import fr.plaglefleau.database.repositories.postgresql.VolunteerRepository
 import fr.plaglefleau.database.tables.RoleName
 import io.ktor.server.application.*
 import io.ktor.server.auth.*
@@ -43,6 +44,7 @@ fun Application.configureSecurity() {
                 // If valid, wrap the token payload in a JWTPrincipal so route handlers can read claims.
                 if (
                     credential.payload.audience.contains("CashlessApiORGANIZER")
+                    && VolunteerRepository().getRole(credential.payload.subject.toInt()) == RoleName.ORGANIZER
                     && credential.payload.expiresAt.time > System.currentTimeMillis()
                 ) {
                     JWTPrincipal(credential.payload)
@@ -66,6 +68,7 @@ fun Application.configureSecurity() {
                 // If valid, wrap the token payload in a JWTPrincipal so route handlers can read claims.
                 if (
                     credential.payload.audience.contains("CashlessApiMANAGER")
+                    && VolunteerRepository().getRole(credential.payload.subject.toInt()) == RoleName.MANAGER
                     && credential.payload.expiresAt.time > System.currentTimeMillis()
                 ) {
                     JWTPrincipal(credential.payload)
@@ -89,6 +92,7 @@ fun Application.configureSecurity() {
                 // If valid, wrap the token payload in a JWTPrincipal so route handlers can read claims.
                 if (
                     credential.payload.audience.contains("CashlessApiSELLER")
+                    && VolunteerRepository().getRole(credential.payload.subject.toInt()) == RoleName.SELLER
                     && credential.payload.expiresAt.time > System.currentTimeMillis()
                 ) {
                     JWTPrincipal(credential.payload)
@@ -112,6 +116,7 @@ fun Application.configureSecurity() {
                 // If valid, wrap the token payload in a JWTPrincipal so route handlers can read claims.
                 if (
                     credential.payload.audience.contains("CashlessApiRECHARGE")
+                    && VolunteerRepository().getRole(credential.payload.subject.toInt()) == RoleName.RECHARGE
                     && credential.payload.expiresAt.time > System.currentTimeMillis()
                 ) {
                     JWTPrincipal(credential.payload)
@@ -143,9 +148,7 @@ fun Application.configureSecurity() {
                 // - the DB session must belong to the same volunteer as the token subject
                 // - the DB session must not be expired
                 if (
-                    credential.payload.audience.contains("CashlessApi")
-                    && credential.payload.expiresAt.time > System.currentTimeMillis()
-                    && activeTokenSession != null
+                    (credential.payload.audience.contains("CashlessApi") && credential.payload.expiresAt.time > System.currentTimeMillis())
                     && !activeTokenSession.revoked
                     && activeTokenSession.volunteer == credential.payload.subject.toInt()
                     && !activeTokenSession.isExpired()

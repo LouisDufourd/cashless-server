@@ -2,7 +2,6 @@ package fr.plaglefleau.api
 
 import fr.plaglefleau.database.exceptions.*
 import io.ktor.http.HttpStatusCode
-import io.ktor.server.plugins.NotFoundException
 
 object ExceptionHandler {
     fun handleException(exception: Exception): HandleResponse {
@@ -13,7 +12,16 @@ object ExceptionHandler {
             is NotFoundException -> HandleResponse(status = HttpStatusCode.NotFound, message = "We could not find the requested resource",  code = 404)
             is ConflictException -> HandleResponse(status = HttpStatusCode.Conflict, message = "The request conflicts with the current state of the resource",  code = 409)
             is InsufficientFundsException -> HandleResponse(status = HttpStatusCode.PaymentRequired, message = "Insufficient funds on the card",  code = 402)
-            else -> HandleResponse(status = HttpStatusCode.InternalServerError, message = "Internal server error", code = 500)
+            else -> {
+                println("Unhandled exception: ${exception::class.simpleName}")
+                println("Unexpected exception: ${exception.message}")
+                exception.printStackTrace()
+                HandleResponse(
+                    status = HttpStatusCode.InternalServerError,
+                    message = "Internal server error",
+                    code = 500
+                )
+            }
         }
     }
 

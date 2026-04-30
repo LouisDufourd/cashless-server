@@ -1,6 +1,9 @@
 package fr.plaglefleau.database.repositories.postgresql
 
+import fr.plaglefleau.database.exceptions.AuthenticationException
+import fr.plaglefleau.database.exceptions.NotFoundException
 import fr.plaglefleau.database.tables.RoleName
+import org.junit.jupiter.api.assertThrows
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
@@ -17,10 +20,8 @@ class VolunteerRepositoryTest : TestDatabaseBase() {
     }
 
     @Test
-    fun `login returns null when credentials are invalid`() {
-        val result = repository.login("bad-user", "bad-password")
-
-        assertNull(result)
+    fun `login throws AuthenticationException when credentials are invalid`() {
+        assertThrows<AuthenticationException> { repository.login("bad-user", "bad-password") }
     }
 
     @Test
@@ -31,9 +32,7 @@ class VolunteerRepositoryTest : TestDatabaseBase() {
     }
 
     @Test
-    fun `getRole returns null when volunteer does not exist`() {
-        val result = repository.getRole(999999)
-
-        assertNull(result)
+    fun `getRole throws NotFoundException when volunteer does not exist`() {
+        assertThrows<NotFoundException> { repository.getRole(999999) }
     }
 }

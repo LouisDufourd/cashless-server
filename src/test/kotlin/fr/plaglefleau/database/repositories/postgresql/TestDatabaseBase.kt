@@ -17,6 +17,6 @@ abstract class TestDatabaseBase {
             portNumber = intArrayOf(4062)
         )
 
-        DatabaseFactory.executeSqlFile("docker/db/testDataGeneration.sql")
+        DatabaseFactory.executeSqlFile("docker/db/test/11-testDataGeneration.sql")
     }
 }

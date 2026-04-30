@@ -5,9 +5,10 @@ import fr.plaglefleau.api.receive.*
 import fr.plaglefleau.api.response.ErrorMessage
 import fr.plaglefleau.api.response.SuccessMessage
 import fr.plaglefleau.api.validation.CardValidation
-import fr.plaglefleau.api.validation.StandValidation
-import fr.plaglefleau.api.validation.VolunteerValidation
-import fr.plaglefleau.database.repositories.postgresql.*
+import fr.plaglefleau.database.repositories.postgresql.CardRepository
+import fr.plaglefleau.database.repositories.postgresql.TokenSessionRepository
+import fr.plaglefleau.database.repositories.postgresql.TransactionLogRepository
+import fr.plaglefleau.database.repositories.postgresql.VolunteerRepository
 import fr.plaglefleau.database.tables.RoleName
 import io.ktor.http.*
 import io.ktor.openapi.*
@@ -34,10 +35,6 @@ fun Application.configureRouting() {
     val transactionLogRepository = TransactionLogRepository()
     val cardRepository = CardRepository()
 
-    val cardValidation = CardValidation(cardRepository)
-    val volunteerValidation = VolunteerValidation(volunteerRepository)
-    val standValidation = StandValidation(StandRepository())
-
     routing {
         get("/") {
             call.respondText("Hello World!")
@@ -54,7 +51,7 @@ fun Application.configureRouting() {
             version = "4.15.5"
         }
 
-        authenticate("ORGANIZER", "SELLER", "MANAGER", "RECHARGE") {
+        authenticate("SELLER", "MANAGER", "RECHARGE") {
             get("/protected") {
                 val principal = call.principal<JWTPrincipal>()
                 if (principal == null) {
@@ -248,7 +245,7 @@ fun Application.configureRouting() {
 
                                 val identifier: Any = identifierValue.toIntOrNull() ?: identifierValue
 
-                                if (cardValidation.verifyInvalidAmount(debitRequest.amount)) {
+                                if (CardValidation.verifyInvalidAmount(debitRequest.amount)) {
                                     sendError(
                                         message = "The amount needs to be positive",
                                         code = 400,
@@ -300,16 +297,7 @@ fun Application.configureRouting() {
 
                                 val identifier: Any = identifierParam.toIntOrNull() ?: identifierParam
 
-                                if (cardValidation.cardExist(identifier)) {
-                                    sendError(
-                                        message = "There is no card with the identifier `$identifier`.",
-                                        code = 404,
-                                        status = HttpStatusCode.NotFound
-                                    )
-                                    return@put
-                                }
-
-                                if (cardValidation.verifyInvalidAmount(receiveCardCredit.amount)) {
+                                if (CardValidation.verifyInvalidAmount(receiveCardCredit.amount)) {
                                     sendError(
                                         message = "The amount needs to be positive",
                                         code = 400,
@@ -318,9 +306,15 @@ fun Application.configureRouting() {
                                     return@put
                                 }
 
-                                when (identifier) {
-                                    is Int -> cardRepository.credit(identifier, receiveCardCredit.amount)
-                                    is String -> cardRepository.credit(identifier, receiveCardCredit.amount)
+                                try {
+                                    when (identifier) {
+                                        is Int -> cardRepository.credit(identifier, receiveCardCredit.amount)
+                                        is String -> cardRepository.credit(identifier, receiveCardCredit.amount)
+                                    }
+                                } catch (e: Exception) {
+                                    val handled = ExceptionHandler.handleException(e)
+                                    sendError(handled.message, handled.code, handled.status)
+                                    return@put
                                 }
 
                                 call.respond(

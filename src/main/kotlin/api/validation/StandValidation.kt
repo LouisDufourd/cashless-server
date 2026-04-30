@@ -8,21 +8,7 @@ import fr.plaglefleau.database.repositories.IStandRepository
  * This class is used to verify that a stand exists before performing operations
  * that depend on it.
  */
-class StandValidation(private val standRepository: IStandRepository) {
+object StandValidation {
 
-    /**
-     * Checks whether a stand exists for the given identifier.
-     *
-     * The identifier can be either an internal numeric id or a stand name.
-     *
-     * @param identifier the stand identifier to check
-     * @return `true` if a matching stand exists, otherwise `false`
-     */
-    fun standExist(identifier: Any): Boolean {
-        return when(identifier) {
-            is Int -> standRepository.getStand(identifier) != null
-            is String -> standRepository.getStand(identifier) != null
-            else -> false
-        }
-    }
+
 }

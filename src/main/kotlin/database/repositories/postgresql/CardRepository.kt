@@ -5,8 +5,7 @@ import fr.plaglefleau.database.dto.CardDTO
 import fr.plaglefleau.database.entities.CardEntity
 import fr.plaglefleau.database.entities.StandEntity
 import fr.plaglefleau.database.entities.TransactionLogEntity
-import fr.plaglefleau.database.exceptions.InsufficientFundsException
-import fr.plaglefleau.database.exceptions.NotFoundException
+import fr.plaglefleau.database.exceptions.*
 import fr.plaglefleau.database.repositories.ICardRepository
 import fr.plaglefleau.database.tables.CardsTable
 import fr.plaglefleau.database.tables.StandsTable.name
@@ -140,7 +139,7 @@ class CardRepository : ICardRepository {
     private fun logTransaction(card: CardEntity, amount: Double, standName: String) {
         TransactionLogEntity.new {
             this.amount = BigDecimal(amount)
-            this.standId = StandEntity.find { name eq standName }.first().id
+            this.standId = StandEntity.find { name eq standName }.firstOrNull()?.id ?: throw NotFoundException("Stand with name $standName not found")
             this.cardId = card.id
             this.userId = card.userId
         }

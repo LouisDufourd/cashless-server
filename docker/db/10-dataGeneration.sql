@@ -19,14 +19,6 @@ select 'Stand ' || gs
 from generate_series(1, 5) gs;
 
 -- -------------------------
--- ROLES
--- -------------------------
-insert into roles(name) values
-                            ('Admin'),
-                            ('Seller'),
-                            ('Manager');
-
--- -------------------------
 -- ARTICLES
 -- -------------------------
 insert into articles(name)
@@ -59,7 +51,7 @@ insert into volunteers(username, password, role, fk_civility_id, fk_stand_id)
 select
     'volunteer_' || c.id,
     'password123',
-    (ARRAY['organiser','manager','seller','recharge'])[floor(random()*4+1)]::role,
+    (ARRAY['ORGANIZER','MANAGER','SELLER','RECHARGE'])[floor(random()*4+1)]::role,
     c.id,
     case
         when random() < 0.3 then null

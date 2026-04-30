@@ -1,8 +1,8 @@
 package fr.plaglefleau.database.repositories.postgresql
 
+import fr.plaglefleau.database.exceptions.NotFoundException
+import org.junit.jupiter.api.assertThrows
 import kotlin.test.Test
-import kotlin.test.assertNotNull
-import kotlin.test.assertNull
 import kotlin.test.assertEquals
 
 class CardRepositoryTest: TestDatabaseBase() {
@@ -10,31 +10,17 @@ class CardRepositoryTest: TestDatabaseBase() {
     private val repository = CardRepository()
 
     @Test
-    fun `getCard by id returns card when it exists`() {
-        val result = repository.getCard(1)
-
-        assertNotNull(result)
+    fun `getCard by id throws NotFoundException when card does not exist`() {
+        assertThrows<NotFoundException> {
+            repository.getCard(999999)
+        }
     }
 
     @Test
-    fun `getCard by id returns null when card does not exist`() {
-        val result = repository.getCard(999999)
-
-        assertNull(result)
-    }
-
-    @Test
-    fun `getCard by nfc returns card when it exists`() {
-        val result = repository.getCard("card-nfc")
-
-        assertNotNull(result)
-    }
-
-    @Test
-    fun `getCard by nfc returns null when card does not exist`() {
-        val result = repository.getCard("missing-nfc")
-
-        assertNull(result)
+    fun `getCard by nfc throws NotFoundException when card does not exist`() {
+        assertThrows<NotFoundException> {
+            repository.getCard("missing-nfc")
+        }
     }
 
     @Test
@@ -57,7 +43,7 @@ class CardRepositoryTest: TestDatabaseBase() {
 
         val result = repository.getCard("new-card-nfc")
 
-        assertNotNull(result)
+        assert(result.nfc == "new-card-nfc" && result.pin == 1234)
     }
 
     @Test
@@ -66,7 +52,6 @@ class CardRepositoryTest: TestDatabaseBase() {
 
         val result = repository.getCard(1)
 
-        assertNotNull(result)
         assertEquals(50.0, result.balance)
         assertEquals(4321, result.pin)
     }
@@ -77,7 +62,6 @@ class CardRepositoryTest: TestDatabaseBase() {
 
         val result = repository.getCard("card-nfc")
 
-        assertNotNull(result)
         assertEquals(50.0, result.balance)
         assertEquals(4321, result.pin)
     }
@@ -88,7 +72,6 @@ class CardRepositoryTest: TestDatabaseBase() {
 
         val result = repository.getBalance(1)
 
-        assertNotNull(result)
         assertEquals(30.0, result)
     }
 
@@ -98,7 +81,6 @@ class CardRepositoryTest: TestDatabaseBase() {
 
         val result = repository.getBalance("card-nfc")
 
-        assertNotNull(result)
         assertEquals(30.0, result)
     }
 
@@ -108,7 +90,6 @@ class CardRepositoryTest: TestDatabaseBase() {
 
         val result = repository.getBalance(1)
 
-        assertNotNull(result)
         assertEquals(15.0, result)
     }
 
@@ -118,7 +99,6 @@ class CardRepositoryTest: TestDatabaseBase() {
 
         val result = repository.getBalance("card-nfc")
 
-        assertNotNull(result)
         assertEquals(15.0, result)
     }
 
@@ -128,7 +108,7 @@ class CardRepositoryTest: TestDatabaseBase() {
 
         val result = repository.getCard(1)
 
-        assertNotNull(result)
+        assertEquals(result.userId, 1)
     }
 
     @Test
@@ -137,7 +117,7 @@ class CardRepositoryTest: TestDatabaseBase() {
 
         val result = repository.getCard(1)
 
-        assertNotNull(result)
+        assertEquals(result.userId, 1)
     }
 
     @Test
@@ -146,7 +126,7 @@ class CardRepositoryTest: TestDatabaseBase() {
 
         val result = repository.getCard("card-nfc")
 
-        assertNotNull(result)
+        assertEquals(result.userId, 1)
     }
 
     @Test
@@ -155,6 +135,6 @@ class CardRepositoryTest: TestDatabaseBase() {
 
         val result = repository.getCard("card-nfc")
 
-        assertNotNull(result)
+        assertEquals(result.userId, 1)
     }
 }

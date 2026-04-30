@@ -50,7 +50,7 @@ dependencies {
     testRuntimeOnly("org.junit.platform:junit-platform-launcher:1.11.4")
 }
 val testDbServiceName = "test-db"
-val testSqlFile = "docker/db/testDataGeneration.sql"
+val testSqlFile = "docker/db/11-testDataGeneration.sql"
 
 tasks.register<Exec>("seedTestDb") {
     group = "verification"
@@ -62,8 +62,8 @@ tasks.register<Exec>("seedTestDb") {
         "docker", "compose", "exec", "-T",
         testDbServiceName,
         "sh", "-c",
-        "psql -U cashless_user-test -d cashless-test -f /docker-entrypoint-initdb.d/init.sql && " +
-            "psql -U cashless_user-test -d cashless-test -f /docker-entrypoint-initdb.d/testDataGeneration.sql"
+        "psql -U cashless_user-test -d cashless-test -f /docker-entrypoint-initdb.d/00-init.sql && " +
+            "psql -U cashless_user-test -d cashless-test -f /docker-entrypoint-initdb.d/test/11-testDataGeneration.sql"
     )
 }
 

@@ -1,5 +1,7 @@
 package fr.plaglefleau.database.repositories.postgresql
 
+import fr.plaglefleau.database.exceptions.NotFoundException
+import org.junit.jupiter.api.assertThrows
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -19,10 +21,8 @@ class StandRepositoryTest : TestDatabaseBase() {
     }
 
     @Test
-    fun `getStand by id returns null when stand does not exist`() {
-        val result = repository.getStand(999999)
-
-        assertNull(result)
+    fun `getStand by id throws NotFoundException when stand does not exist`() {
+        assertThrows<NotFoundException> { repository.getStand(999999) }
     }
 
     @Test
@@ -35,9 +35,7 @@ class StandRepositoryTest : TestDatabaseBase() {
     }
 
     @Test
-    fun `getStand by name returns null when stand does not exist`() {
-        val result = repository.getStand("missing-stand")
-
-        assertNull(result)
+    fun `getStand by name throws NotFoundException when stand does not exist`() {
+        assertThrows<NotFoundException> { repository.getStand("missing-stand") }
     }
 }
