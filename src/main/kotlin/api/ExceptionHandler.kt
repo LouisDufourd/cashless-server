@@ -2,8 +2,12 @@ package fr.plaglefleau.api
 
 import fr.plaglefleau.database.exceptions.*
 import io.ktor.http.HttpStatusCode
+import io.ktor.util.logging.KtorSimpleLogger
 
 object ExceptionHandler {
+
+    internal val LOGGER = KtorSimpleLogger("fr.plaglefleau.api.ExceptionHandler")
+
     fun handleException(exception: Exception): HandleResponse {
         return when(exception) {
             is IllegalArgumentException -> HandleResponse(status = HttpStatusCode.BadRequest, message = "Bad request",  code = 400)
@@ -13,9 +17,9 @@ object ExceptionHandler {
             is ConflictException -> HandleResponse(status = HttpStatusCode.Conflict, message = "The request conflicts with the current state of the resource",  code = 409)
             is InsufficientFundsException -> HandleResponse(status = HttpStatusCode.PaymentRequired, message = "Insufficient funds on the card",  code = 402)
             else -> {
-                println("Unhandled exception: ${exception::class.simpleName}")
-                println("Unexpected exception: ${exception.message}")
-                exception.printStackTrace()
+                LOGGER.error("Unhandled exception: ${exception::class.simpleName}")
+                LOGGER.error("Unexpected exception: ${exception.message}")
+                LOGGER.error(exception.stackTraceToString())
                 HandleResponse(
                     status = HttpStatusCode.InternalServerError,
                     message = "Internal server error",

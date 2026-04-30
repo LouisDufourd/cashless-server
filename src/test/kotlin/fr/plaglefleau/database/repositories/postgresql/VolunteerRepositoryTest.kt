@@ -14,14 +14,17 @@ class VolunteerRepositoryTest : TestDatabaseBase() {
 
     @Test
     fun `login returns volunteer id when credentials are valid`() {
-        val result = repository.login("volunteer_1", "password123")
-
-        assertEquals(1, result)
+        assertEquals(1, repository.login("volunteer_1", "password123"))
+        assertEquals(2, repository.login("volunteer_2", "password123"))
+        assertEquals(3, repository.login("volunteer_3", "password123"))
+        assertEquals(4, repository.login("volunteer_4", "password123"))
     }
 
     @Test
     fun `login throws AuthenticationException when credentials are invalid`() {
         assertThrows<AuthenticationException> { repository.login("bad-user", "bad-password") }
+        assertThrows<AuthenticationException> { repository.login("volunteer_1", "bad-password") }
+        assertThrows<AuthenticationException> { repository.login("bad-user", "password123") }
     }
 
     @Test

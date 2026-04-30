@@ -29,7 +29,10 @@ insert into users (id, username, password) values
 -- VOLUNTEERS
 -- =========================================================
 insert into volunteers (id, username, password, role, fk_civility_id, fk_stand_id) values
-(1, 'volunteer_1', 'password123', 'ORGANIZER', 1, 1);
+(1, 'volunteer_1', 'password123', 'ORGANIZER', 1, 1),
+(2, 'volunteer_2', 'password123', 'MANAGER', 1, 1),
+(3, 'volunteer_3', 'password123', 'SELLER', 1, 1),
+(4, 'volunteer_4', 'password123', 'RECHARGE', 1, 1);
 
 -- =========================================================
 -- ARTICLE
