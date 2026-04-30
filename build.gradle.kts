@@ -1,6 +1,6 @@
-val kotlin_version: String by project
-val logback_version: String by project
-val ktor_version: String by project
+val kotlinVersion: String by project
+val logbackVersion: String by project
+val ktorVersion: String by project
 
 plugins {
     kotlin("jvm") version "2.3.0"
@@ -28,10 +28,10 @@ dependencies {
     implementation("io.ktor:ktor-server-content-negotiation")
     implementation("io.ktor:ktor-serialization-gson")
     implementation("io.ktor:ktor-server-netty")
-    implementation("ch.qos.logback:logback-classic:$logback_version")
+    implementation("ch.qos.logback:logback-classic:$logbackVersion")
     implementation("io.ktor:ktor-server-config-yaml")
-    implementation("io.ktor:ktor-server-auth:${ktor_version}")
-    implementation("io.ktor:ktor-server-auth-jwt:${ktor_version}")
+    implementation("io.ktor:ktor-server-auth:${ktorVersion}")
+    implementation("io.ktor:ktor-server-auth-jwt:${ktorVersion}")
 
     implementation("org.jetbrains.exposed:exposed-core:1.1.1")
     implementation("org.jetbrains.exposed:exposed-dao:1.1.1")
