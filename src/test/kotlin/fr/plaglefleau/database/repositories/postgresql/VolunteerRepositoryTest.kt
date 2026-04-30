@@ -6,7 +6,6 @@ import fr.plaglefleau.database.tables.RoleName
 import org.junit.jupiter.api.assertThrows
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertNull
 
 class VolunteerRepositoryTest : TestDatabaseBase() {
 

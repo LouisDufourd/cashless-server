@@ -1,7 +1,5 @@
 package fr.plaglefleau.api.validation
 
-import fr.plaglefleau.database.repositories.ICardRepository
-
 /**
  * Provides validation helpers for card-related business rules.
  *

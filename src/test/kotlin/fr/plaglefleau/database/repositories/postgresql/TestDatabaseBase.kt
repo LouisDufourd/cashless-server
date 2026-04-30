@@ -1,8 +1,6 @@
 package fr.plaglefleau.database.repositories.postgresql
 
 import fr.plaglefleau.database.DatabaseFactory
-import java.io.File
-import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 
 abstract class TestDatabaseBase {

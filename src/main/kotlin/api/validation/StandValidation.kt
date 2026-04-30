@@ -1,7 +1,5 @@
 package fr.plaglefleau.api.validation
 
-import fr.plaglefleau.database.repositories.IStandRepository
-
 /**
  * Provides validation helpers for stand-related business rules.
  *

@@ -552,10 +552,10 @@ private suspend fun RoutingContext.getVolunteerRole(volunteerRepository: Volunte
  * @param card card identifier, either id or NFC code
  * @param user user identifier, either id or username
  */
-private fun CardRepository.connect(card: Any, user: Any) = when {
-    card is Int && user is Int -> connect(card, user)
-    card is Int && user is String -> connect(card, user)
-    card is String && user is Int -> connect(card, user)
-    card is String && user is String -> connect(card, user)
+private fun CardRepository.connect(card: Any, user: Any) = when (card) {
+    is Int if user is Int -> connect(card, user)
+    is Int if user is String -> connect(card, user)
+    is String if user is Int -> connect(card, user)
+    is String if user is String -> connect(card, user)
     else -> error("Unexpected identifier types: ${card::class} / ${user::class}")
 }
